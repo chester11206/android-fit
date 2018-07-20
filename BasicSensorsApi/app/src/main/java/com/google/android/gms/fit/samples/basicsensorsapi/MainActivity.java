@@ -117,10 +117,10 @@ public class MainActivity extends AppCompatActivity {
   private void requestOAuthPermission() {
     FitnessOptions fitnessOptions = getFitnessSignInOptions();
     GoogleSignIn.requestPermissions(
-        this,
-        REQUEST_OAUTH_REQUEST_CODE,
-        GoogleSignIn.getLastSignedInAccount(this),
-        fitnessOptions);
+            this,
+            REQUEST_OAUTH_REQUEST_CODE,
+            GoogleSignIn.getLastSignedInAccount(this),
+            fitnessOptions);
   }
 
   @Override
@@ -147,35 +147,39 @@ public class MainActivity extends AppCompatActivity {
     // [START find_data_sources]
     // Note: Fitness.SensorsApi.findDataSources() requires the ACCESS_FINE_LOCATION permission.
     Fitness.getSensorsClient(this, GoogleSignIn.getLastSignedInAccount(this))
-        .findDataSources(
-            new DataSourcesRequest.Builder()
-                .setDataTypes(DataType.TYPE_LOCATION_SAMPLE)
-                .setDataSourceTypes(DataSource.TYPE_RAW)
-                .build())
-        .addOnSuccessListener(
-            new OnSuccessListener<List<DataSource>>() {
-              @Override
-              public void onSuccess(List<DataSource> dataSources) {
-                for (DataSource dataSource : dataSources) {
-                  Log.i(TAG, "Data source found: " + dataSource.toString());
-                  Log.i(TAG, "Data Source type: " + dataSource.getDataType().getName());
+            .findDataSources(
+                    new DataSourcesRequest.Builder()
+                            .setDataTypes(DataType.TYPE_LOCATION_SAMPLE,
+                                    DataType.TYPE_STEP_COUNT_DELTA,
+                                    DataType.TYPE_DISTANCE_DELTA)
+                            .setDataSourceTypes(DataSource.TYPE_RAW, DataSource.TYPE_DERIVED)
+                            .build())
+            .addOnSuccessListener(
+                    new OnSuccessListener<List<DataSource>>() {
+                      @Override
+                      public void onSuccess(List<DataSource> dataSources) {
+                        for (DataSource dataSource : dataSources) {
+                          Log.i(TAG, "Data source found: " + dataSource.toString());
+                          Log.i(TAG, "Data Source type: " + dataSource.getDataType().getName());
 
-                  // Let's register a listener to receive Activity data!
-                  if (dataSource.getDataType().equals(DataType.TYPE_LOCATION_SAMPLE)
-                      && mListener == null) {
-                    Log.i(TAG, "Data source for LOCATION_SAMPLE found!  Registering.");
-                    registerFitnessDataListener(dataSource, DataType.TYPE_LOCATION_SAMPLE);
-                  }
-                }
-              }
-            })
-        .addOnFailureListener(
-            new OnFailureListener() {
-              @Override
-              public void onFailure(@NonNull Exception e) {
-                Log.e(TAG, "failed", e);
-              }
-            });
+                          // Let's register a listener to receive Activity data!
+                          if (dataSource.getDataType().equals(DataType.TYPE_LOCATION_SAMPLE) ||
+                                  dataSource.getDataType().equals(DataType.TYPE_STEP_COUNT_DELTA) ||
+                                  dataSource.getDataType().equals(DataType.TYPE_DISTANCE_DELTA)
+                                          && mListener == null) {
+                            Log.i(TAG, "Data source for " + dataSource.getDataType().getName() + " found!  Registering.");
+                            registerFitnessDataListener(dataSource, dataSource.getDataType());
+                          }
+                        }
+                      }
+                    })
+            .addOnFailureListener(
+                    new OnFailureListener() {
+                      @Override
+                      public void onFailure(@NonNull Exception e) {
+                        Log.e(TAG, "failed", e);
+                      }
+                    });
     // [END find_data_sources]
   }
 
@@ -186,36 +190,36 @@ public class MainActivity extends AppCompatActivity {
   private void registerFitnessDataListener(DataSource dataSource, DataType dataType) {
     // [START register_data_listener]
     mListener =
-        new OnDataPointListener() {
-          @Override
-          public void onDataPoint(DataPoint dataPoint) {
-            for (Field field : dataPoint.getDataType().getFields()) {
-              Value val = dataPoint.getValue(field);
-              Log.i(TAG, "Detected DataPoint field: " + field.getName());
-              Log.i(TAG, "Detected DataPoint value: " + val);
-            }
-          }
-        };
-
-    Fitness.getSensorsClient(this, GoogleSignIn.getLastSignedInAccount(this))
-        .add(
-            new SensorRequest.Builder()
-                .setDataSource(dataSource) // Optional but recommended for custom data sets.
-                .setDataType(dataType) // Can't be omitted.
-                .setSamplingRate(10, TimeUnit.SECONDS)
-                .build(),
-            mListener)
-        .addOnCompleteListener(
-            new OnCompleteListener<Void>() {
+            new OnDataPointListener() {
               @Override
-              public void onComplete(@NonNull Task<Void> task) {
-                if (task.isSuccessful()) {
-                  Log.i(TAG, "Listener registered!");
-                } else {
-                  Log.e(TAG, "Listener not registered.", task.getException());
+              public void onDataPoint(DataPoint dataPoint) {
+                for (Field field : dataPoint.getDataType().getFields()) {
+                  Value val = dataPoint.getValue(field);
+                  Log.i(TAG, "Detected DataPoint field: " + field.getName());
+                  Log.i(TAG, "Detected DataPoint value: " + val);
                 }
               }
-            });
+            };
+
+    Fitness.getSensorsClient(this, GoogleSignIn.getLastSignedInAccount(this))
+            .add(
+                    new SensorRequest.Builder()
+                            .setDataSource(dataSource) // Optional but recommended for custom data sets.
+                            .setDataType(dataType) // Can't be omitted.
+                            .setSamplingRate(10, TimeUnit.SECONDS)
+                            .build(),
+                    mListener)
+            .addOnCompleteListener(
+                    new OnCompleteListener<Void>() {
+                      @Override
+                      public void onComplete(@NonNull Task<Void> task) {
+                        if (task.isSuccessful()) {
+                          Log.i(TAG, "Listener registered!");
+                        } else {
+                          Log.e(TAG, "Listener not registered.", task.getException());
+                        }
+                      }
+                    });
     // [END register_data_listener]
   }
 
@@ -232,18 +236,18 @@ public class MainActivity extends AppCompatActivity {
     // even if called from within onStop, but a callback can still be added in order to
     // inspect the results.
     Fitness.getSensorsClient(this, GoogleSignIn.getLastSignedInAccount(this))
-        .remove(mListener)
-        .addOnCompleteListener(
-            new OnCompleteListener<Boolean>() {
-              @Override
-              public void onComplete(@NonNull Task<Boolean> task) {
-                if (task.isSuccessful() && task.getResult()) {
-                  Log.i(TAG, "Listener was removed!");
-                } else {
-                  Log.i(TAG, "Listener was not removed.");
-                }
-              }
-            });
+            .remove(mListener)
+            .addOnCompleteListener(
+                    new OnCompleteListener<Boolean>() {
+                      @Override
+                      public void onComplete(@NonNull Task<Boolean> task) {
+                        if (task.isSuccessful() && task.getResult()) {
+                          Log.i(TAG, "Listener was removed!");
+                        } else {
+                          Log.i(TAG, "Listener was not removed.");
+                        }
+                      }
+                    });
     // [END unregister_data_listener]
   }
 
@@ -288,52 +292,52 @@ public class MainActivity extends AppCompatActivity {
   /** Returns the current state of the permissions needed. */
   private boolean hasRuntimePermissions() {
     int permissionState =
-        ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION);
+            ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION);
     return permissionState == PackageManager.PERMISSION_GRANTED;
   }
 
   private void requestRuntimePermissions() {
     boolean shouldProvideRationale =
-        ActivityCompat.shouldShowRequestPermissionRationale(
-            this, Manifest.permission.ACCESS_FINE_LOCATION);
+            ActivityCompat.shouldShowRequestPermissionRationale(
+                    this, Manifest.permission.ACCESS_FINE_LOCATION);
 
     // Provide an additional rationale to the user. This would happen if the user denied the
     // request previously, but didn't check the "Don't ask again" checkbox.
     if (shouldProvideRationale) {
       Log.i(TAG, "Displaying permission rationale to provide additional context.");
       Snackbar.make(
-          findViewById(R.id.main_activity_view),
-          R.string.permission_rationale,
-          Snackbar.LENGTH_INDEFINITE)
-          .setAction(
-              R.string.ok,
-              new View.OnClickListener() {
-                @Override
-                public void onClick(View view) {
-                  // Request permission
-                  ActivityCompat.requestPermissions(
-                      MainActivity.this,
-                      new String[] {Manifest.permission.ACCESS_FINE_LOCATION},
-                      REQUEST_PERMISSIONS_REQUEST_CODE);
-                }
-              })
-          .show();
+              findViewById(R.id.main_activity_view),
+              R.string.permission_rationale,
+              Snackbar.LENGTH_INDEFINITE)
+              .setAction(
+                      R.string.ok,
+                      new View.OnClickListener() {
+                        @Override
+                        public void onClick(View view) {
+                          // Request permission
+                          ActivityCompat.requestPermissions(
+                                  MainActivity.this,
+                                  new String[] {Manifest.permission.ACCESS_FINE_LOCATION},
+                                  REQUEST_PERMISSIONS_REQUEST_CODE);
+                        }
+                      })
+              .show();
     } else {
       Log.i(TAG, "Requesting permission");
       // Request permission. It's possible this can be auto answered if device policy
       // sets the permission in a given state or the user denied the permission
       // previously and checked "Never ask again".
       ActivityCompat.requestPermissions(
-          MainActivity.this,
-          new String[] {Manifest.permission.ACCESS_FINE_LOCATION},
-          REQUEST_PERMISSIONS_REQUEST_CODE);
+              MainActivity.this,
+              new String[] {Manifest.permission.ACCESS_FINE_LOCATION},
+              REQUEST_PERMISSIONS_REQUEST_CODE);
     }
   }
 
   /** Callback received when a permissions request has been completed. */
   @Override
   public void onRequestPermissionsResult(
-      int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+          int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
     Log.i(TAG, "onRequestPermissionResult");
     if (requestCode == REQUEST_PERMISSIONS_REQUEST_CODE) {
       if (grantResults.length <= 0) {
@@ -357,24 +361,24 @@ public class MainActivity extends AppCompatActivity {
         // when permissions are denied. Otherwise, your app could appear unresponsive to
         // touches or interactions which have required permissions.
         Snackbar.make(
-            findViewById(R.id.main_activity_view),
-            R.string.permission_denied_explanation,
-            Snackbar.LENGTH_INDEFINITE)
-            .setAction(
-                R.string.settings,
-                new View.OnClickListener() {
-                  @Override
-                  public void onClick(View view) {
-                    // Build intent that displays the App settings screen.
-                    Intent intent = new Intent();
-                    intent.setAction(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
-                    Uri uri = Uri.fromParts("package", BuildConfig.APPLICATION_ID, null);
-                    intent.setData(uri);
-                    intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                    startActivity(intent);
-                  }
-                })
-            .show();
+                findViewById(R.id.main_activity_view),
+                R.string.permission_denied_explanation,
+                Snackbar.LENGTH_INDEFINITE)
+                .setAction(
+                        R.string.settings,
+                        new View.OnClickListener() {
+                          @Override
+                          public void onClick(View view) {
+                            // Build intent that displays the App settings screen.
+                            Intent intent = new Intent();
+                            intent.setAction(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+                            Uri uri = Uri.fromParts("package", BuildConfig.APPLICATION_ID, null);
+                            intent.setData(uri);
+                            intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                            startActivity(intent);
+                          }
+                        })
+                .show();
       }
     }
   }
