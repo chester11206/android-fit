@@ -49,8 +49,15 @@ import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.android.gms.tasks.Task;
+
+import java.text.DateFormat;
+import java.util.Calendar;
+import java.util.Date;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+
+import static java.text.DateFormat.getDateInstance;
+import static java.text.DateFormat.getDateTimeInstance;
 
 /**
  * This sample demonstrates how to use the Sensors API of the Google Fit platform to find available
@@ -149,9 +156,11 @@ public class MainActivity extends AppCompatActivity {
     Fitness.getSensorsClient(this, GoogleSignIn.getLastSignedInAccount(this))
             .findDataSources(
                     new DataSourcesRequest.Builder()
-                            .setDataTypes(DataType.TYPE_LOCATION_SAMPLE,
+                            .setDataTypes(//DataType.TYPE_LOCATION_SAMPLE,
                                     DataType.TYPE_STEP_COUNT_DELTA,
-                                    DataType.TYPE_DISTANCE_DELTA)
+                                    DataType.TYPE_DISTANCE_DELTA,
+                                    DataType.TYPE_SPEED,
+                                    DataType.TYPE_ACTIVITY_SAMPLES)
                             .setDataSourceTypes(DataSource.TYPE_RAW, DataSource.TYPE_DERIVED)
                             .build())
             .addOnSuccessListener(
@@ -159,15 +168,21 @@ public class MainActivity extends AppCompatActivity {
                       @Override
                       public void onSuccess(List<DataSource> dataSources) {
                         for (DataSource dataSource : dataSources) {
-                          Log.i(TAG, "Data source found: " + dataSource.toString());
-                          Log.i(TAG, "Data Source type: " + dataSource.getDataType().getName());
+                            Log.i(TAG, "Data Source Found: ");
+                            Log.i(TAG, "\tData Source: " + dataSource.toString());
+                            Log.i(TAG, "\tData Source type: " + dataSource.getDataType().getName());
+                            //Log.i(TAG, "\tData Source type equal: " + dataSource.getDataType().equals(DataType.TYPE_ACTIVITY_SAMPLES));
+                            //Log.i(TAG, "\tmListener null: " + (mListener == null));
 
-                          // Let's register a listener to receive Activity data!
-                          if (dataSource.getDataType().equals(DataType.TYPE_LOCATION_SAMPLE) ||
-                                  dataSource.getDataType().equals(DataType.TYPE_STEP_COUNT_DELTA) ||
-                                  dataSource.getDataType().equals(DataType.TYPE_DISTANCE_DELTA)
-                                          && mListener == null) {
-                            Log.i(TAG, "Data source for " + dataSource.getDataType().getName() + " found!  Registering.");
+                                    // Let's register a listener to receive Activity data!
+                          if (//dataSource.getDataType().equals(DataType.TYPE_LOCATION_SAMPLE) ||
+                              dataSource.getDataType().equals(DataType.TYPE_STEP_COUNT_DELTA) ||
+                              dataSource.getDataType().equals(DataType.TYPE_DISTANCE_DELTA) ||
+                              dataSource.getDataType().equals(DataType.TYPE_SPEED) ||
+                              dataSource.getDataType().equals(DataType.TYPE_ACTIVITY_SAMPLES)
+                                          //&& mListener == null
+                            ) {
+                            Log.i(TAG, "\tData source for " + dataSource.getDataType().getName() + " found!  Registering.");
                             registerFitnessDataListener(dataSource, dataSource.getDataType());
                           }
                         }
@@ -187,16 +202,25 @@ public class MainActivity extends AppCompatActivity {
    * Registers a listener with the Sensors API for the provided {@link DataSource} and {@link
    * DataType} combo.
    */
-  private void registerFitnessDataListener(DataSource dataSource, DataType dataType) {
+  private void registerFitnessDataListener(DataSource dataSource, final DataType dataType) {
     // [START register_data_listener]
     mListener =
             new OnDataPointListener() {
               @Override
               public void onDataPoint(DataPoint dataPoint) {
-                for (Field field : dataPoint.getDataType().getFields()) {
-                  Value val = dataPoint.getValue(field);
-                  Log.i(TAG, "Detected DataPoint field: " + field.getName());
-                  Log.i(TAG, "Detected DataPoint value: " + val);
+                  Log.i(TAG, "Detecting...");
+
+                  Calendar cal = Calendar.getInstance();
+                  Date now = new Date();
+                  cal.setTime(now);
+                  long TimeNow = cal.getTimeInMillis();
+                  DateFormat dateFormat = getDateTimeInstance();
+                  Log.i(TAG, "Listen Time: " + dateFormat.format(TimeNow));
+
+                  for (Field field : dataPoint.getDataType().getFields()) {
+                      Value val = dataPoint.getValue(field);
+                    Log.i(TAG, "Detected DataPoint field: " + field.getName());
+                    Log.i(TAG, "Detected DataPoint value: " + val);
                 }
               }
             };
@@ -214,7 +238,7 @@ public class MainActivity extends AppCompatActivity {
                       @Override
                       public void onComplete(@NonNull Task<Void> task) {
                         if (task.isSuccessful()) {
-                          Log.i(TAG, "Listener registered!");
+                          Log.i(TAG, "Listener registered: " + dataType.getName());
                         } else {
                           Log.e(TAG, "Listener not registered.", task.getException());
                         }

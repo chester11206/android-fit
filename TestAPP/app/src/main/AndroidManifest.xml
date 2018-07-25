@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.example.chester11206.testapp">
+
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+
+    <application
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="MyFit"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/AppTheme">
+        <activity android:name=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+        <activity
+            android:name=".SensorsAPI"
+            android:label="@string/title_activity_sensors_api"
+            android:theme="@style/AppTheme.NoActionBar" />
+        <activity
+            android:name=".HistoryAPI"
+            android:label="@string/title_activity_history_api"
+            android:theme="@style/AppTheme.NoActionBar" />
+        <activity
+            android:name=".RecordingAPI"
+            android:label="@string/title_activity_recording_api"
+            android:theme="@style/AppTheme.NoActionBar"></activity>
+    </application>
+
+</manifest>

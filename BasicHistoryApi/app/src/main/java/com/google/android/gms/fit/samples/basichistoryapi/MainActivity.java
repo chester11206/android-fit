@@ -16,12 +16,14 @@
 package com.google.android.gms.fit.samples.basichistoryapi;
 
 import static java.text.DateFormat.getDateInstance;
+import static java.text.DateFormat.getDateTimeInstance;
 import static java.text.DateFormat.getTimeInstance;
 
 import android.app.Activity;
 import android.content.Intent;
 import android.graphics.Color;
 import android.os.Bundle;
+import android.os.Environment;
 import android.support.annotation.NonNull;
 import android.support.v7.app.AppCompatActivity;
 import android.view.Menu;
@@ -48,6 +50,9 @@ import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.android.gms.tasks.Task;
+
+import java.io.File;
+import java.io.FileOutputStream;
 import java.text.DateFormat;
 import java.util.Calendar;
 import java.util.Date;
@@ -225,6 +230,7 @@ public class MainActivity extends AppCompatActivity {
             // datapoints each consisting of a few steps and a timestamp.  The more likely
             // scenario is wanting to see how many steps were walked per day, for 7 days.
             .aggregate(DataType.TYPE_STEP_COUNT_DELTA, DataType.AGGREGATE_STEP_COUNT_DELTA)
+            .aggregate(DataType.TYPE_ACTIVITY_SEGMENT, DataType.AGGREGATE_ACTIVITY_SUMMARY)
             // Analogous to a "Group By" in SQL, defines how data should be aggregated.
             // bucketByTime allows for a time span, whereas bucketBySession would allow
             // bucketing by "sessions", which would need to be defined in code.
@@ -269,7 +275,7 @@ public class MainActivity extends AppCompatActivity {
   // [START parse_dataset]
   private static void dumpDataSet(DataSet dataSet) {
     Log.i(TAG, "Data returned for Data type: " + dataSet.getDataType().getName());
-    DateFormat dateFormat = getTimeInstance();
+    DateFormat dateFormat = getDateTimeInstance();
 
     for (DataPoint dp : dataSet.getDataPoints()) {
       Log.i(TAG, "Data point:");
@@ -277,9 +283,49 @@ public class MainActivity extends AppCompatActivity {
       Log.i(TAG, "\tStart: " + dateFormat.format(dp.getStartTime(TimeUnit.MILLISECONDS)));
       Log.i(TAG, "\tEnd: " + dateFormat.format(dp.getEndTime(TimeUnit.MILLISECONDS)));
       for (Field field : dp.getDataType().getFields()) {
-        Log.i(TAG, "\tField: " + field.getName() + " Value: " + dp.getValue(field));
+          if (field.equals(Field.FIELD_ACTIVITY)) {
+              Log.i(TAG, "\tField: " + field.getName() + " Value: " + dp.getValue(field).asActivity());
+          }
+          else {
+              Log.i(TAG, "\tField: " + field.getName() + " Value: " + dp.getValue(field));
+          }
+          writetxt(dp, field);
       }
     }
+  }
+
+  private static void writetxt(DataPoint dp, Field field) {
+      DateFormat dateFormat = getTimeInstance();
+      String filename = "/HistoryAPI.txt";
+      // 存放檔案位置在 內部空間/Download/
+      File path = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
+      String filepath = path.toString() + filename;
+      File file = new File(filepath);
+      FileOutputStream Output = null;
+      //Log.i(TAG, "\tPathName: " + file.toString());
+      try
+      {
+          // 第二個參數為是否 append
+          // 若為 true，則新加入的文字會接續寫在文字檔的最後
+
+          Output = new FileOutputStream(file, true);
+
+          String outputdata = "\tType: " + dp.getDataType().getName() +
+                  "\tStart: " + dateFormat.format(dp.getStartTime(TimeUnit.MILLISECONDS)) +
+                  "\tEnd: " + dateFormat.format(dp.getEndTime(TimeUnit.MILLISECONDS)) +
+                  "\tField: " + field.getName() + " Value: " + dp.getValue(field) + "\n";
+//          String dateformat = "yyyyMMdd kk:mm:ss";
+//          SimpleDateFormat df = new SimpleDateFormat(dateformat);
+//          df.applyPattern(dateformat);
+//          String string =  df.format(new Date()) + " : " + EditText.getText()  + "\n";
+          Output.write(outputdata.getBytes());
+          Output.close();
+
+      }
+      catch (Exception e)
+      {
+          e.printStackTrace();
+      }
   }
   // [END parse_dataset]
 
