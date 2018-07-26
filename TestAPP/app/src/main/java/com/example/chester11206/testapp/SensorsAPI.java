@@ -82,6 +82,7 @@ public class SensorsAPI extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         // Put application specific code here.
+        Log.i(TAG, "LOG3");
 
         setContentView(R.layout.fragment_view_fragment1);
         // This method sets up our custom logger, which will print all log messages to the device
@@ -92,7 +93,6 @@ public class SensorsAPI extends AppCompatActivity {
                 // When permissions are revoked the app is restarted so onCreate is sufficient to check for
         // permissions core to the Activity's functionality.
         if (hasRuntimePermissions()) {
-
             findFitnessDataSourcesWrapper();
         } else {
 
@@ -104,15 +104,11 @@ public class SensorsAPI extends AppCompatActivity {
      * A wrapper for {@link #findFitnessDataSources}. If the user account has OAuth permission,
      * continue to {@link #findFitnessDataSources}, else request OAuth permission for the account.
      */
-    private void findFitnessDataSourcesWrapper() {
-        Log.i(TAG, "LOG");
+    public void findFitnessDataSourcesWrapper() {
         if (hasOAuthPermission()) {
-            Log.i(TAG, "LOG2");
             findFitnessDataSources();
         } else {
-            Log.i(TAG, "LOG3");
             requestOAuthPermission();
-            Log.i(TAG, "activity" + GoogleSignIn.getLastSignedInAccount(this));
         }
     }
 
