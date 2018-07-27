@@ -27,18 +27,18 @@ public class ViewFragment2 extends Fragment {
 
     public void onStart(){
         super.onStart();
-        Button bt=(Button)context.findViewById(R.id.button2);
-        bt.setOnClickListener(new View.OnClickListener(){
-            public void onClick(View view){
-
-                //create an Intent object
-                Intent intent = new Intent(context, HistoryAPI.class);
-                //add data to the Intent object
-                //intent.putExtra("name",);
-                //start the second activity
-                ((MainActivity) getActivity()).startActivity(intent);
-            }
-
-        });
+//        Button bt=(Button)context.findViewById(R.id.button2);
+//        bt.setOnClickListener(new View.OnClickListener(){
+//            public void onClick(View view){
+//
+//                //create an Intent object
+//                Intent intent = new Intent(context, HistoryAPI.class);
+//                //add data to the Intent object
+//                //intent.putExtra("name",);
+//                //start the second activity
+//                ((MainActivity) getActivity()).startActivity(intent);
+//            }
+//
+//        });
     }
 }

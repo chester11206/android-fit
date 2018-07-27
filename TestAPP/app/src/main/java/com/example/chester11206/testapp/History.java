@@ -1,23 +1,4 @@
-/*
- * Copyright (C) 2016 Google, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
 package com.example.chester11206.testapp;
-
-import static java.text.DateFormat.getDateInstance;
-import static java.text.DateFormat.getDateTimeInstance;
-import static java.text.DateFormat.getTimeInstance;
 
 import android.app.Activity;
 import android.content.Intent;
@@ -25,9 +6,11 @@ import android.graphics.Color;
 import android.os.Bundle;
 import android.os.Environment;
 import android.support.annotation.NonNull;
-import android.support.v7.app.AppCompatActivity;
+import android.text.method.ScrollingMovementMethod;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.widget.TextView;
+
 import com.google.android.gms.auth.api.signin.GoogleSignIn;
 import com.google.android.gms.fit.samples.common.logger.Log;
 import com.google.android.gms.fit.samples.common.logger.LogView;
@@ -59,48 +42,29 @@ import java.util.Date;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-/**
- * This sample demonstrates how to use the History API of the Google Fit platform to insert data,
- * query against existing data, and remove data. It also demonstrates how to authenticate a user
- * with Google Play Services and how to properly represent data in a {@link DataSet}.
- */
-public class HistoryAPI extends AppCompatActivity {
+import static java.text.DateFormat.getDateInstance;
+import static java.text.DateFormat.getDateTimeInstance;
+import static java.text.DateFormat.getTimeInstance;
+
+public class History {
     public static final String TAG = "BasicHistoryApi";
     // Identifier to identify the sign in activity.
-    private static final int REQUEST_OAUTH_REQUEST_CODE = 1;
 
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        setContentView(R.layout.fragment_view_fragment2);
-        // This method sets up our custom logger, which will print all log messages to the device
-        // screen, as well as to adb logcat.
-        //initializeLogging();
+    public static TextView txvResult;
 
-        FitnessOptions fitnessOptions =
-                FitnessOptions.builder()
-                        .addDataType(DataType.TYPE_STEP_COUNT_DELTA, FitnessOptions.ACCESS_WRITE)
-                        .addDataType(DataType.AGGREGATE_STEP_COUNT_DELTA, FitnessOptions.ACCESS_WRITE)
-                        .build();
-        if (!GoogleSignIn.hasPermissions(GoogleSignIn.getLastSignedInAccount(this), fitnessOptions)) {
-            GoogleSignIn.requestPermissions(
-                    this,
-                    REQUEST_OAUTH_REQUEST_CODE,
-                    GoogleSignIn.getLastSignedInAccount(this),
-                    fitnessOptions);
-        } else {
-            insertAndReadData();
-        }
+    public Activity context;
+
+    public void start(Activity activity){
+
+        this.context = activity;
+
+        txvResult = (TextView) this.context.findViewById(R.id.txvResult2);
+        txvResult.setMovementMethod(new ScrollingMovementMethod());
+
+        initializeLogging();
+        insertAndReadData();
     }
 
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        if (resultCode == Activity.RESULT_OK) {
-            if (requestCode == REQUEST_OAUTH_REQUEST_CODE) {
-                insertAndReadData();
-            }
-        }
-    }
 
     /**
      * Inserts and reads data by chaining {@link Task} from {@link #insertData()} and {@link
@@ -124,7 +88,8 @@ public class HistoryAPI extends AppCompatActivity {
 
         // Then, invoke the History API to insert the data.
         Log.i(TAG, "Inserting the dataset in the History API.");
-        return Fitness.getHistoryClient(this, GoogleSignIn.getLastSignedInAccount(this))
+        txvResult.append("Inserting the dataset in the History API.");
+        return Fitness.getHistoryClient(this.context, GoogleSignIn.getLastSignedInAccount(this.context))
                 .insertData(dataSet)
                 .addOnCompleteListener(
                         new OnCompleteListener<Void>() {
@@ -133,8 +98,10 @@ public class HistoryAPI extends AppCompatActivity {
                                 if (task.isSuccessful()) {
                                     // At this point, the data has been inserted and can be read.
                                     Log.i(TAG, "Data insert was successful!");
+                                    txvResult.append("Data insert was successful!");
                                 } else {
                                     Log.e(TAG, "There was a problem inserting the dataset.", task.getException());
+                                    txvResult.append("There was a problem inserting the dataset." + task.getException().toString());
                                 }
                             }
                         });
@@ -148,7 +115,7 @@ public class HistoryAPI extends AppCompatActivity {
         DataReadRequest readRequest = queryFitnessData();
 
         // Invoke the History API to fetch the data with the query
-        return Fitness.getHistoryClient(this, GoogleSignIn.getLastSignedInAccount(this))
+        return Fitness.getHistoryClient(this.context, GoogleSignIn.getLastSignedInAccount(this.context))
                 .readData(readRequest)
                 .addOnSuccessListener(
                         new OnSuccessListener<DataReadResponse>() {
@@ -165,6 +132,7 @@ public class HistoryAPI extends AppCompatActivity {
                             @Override
                             public void onFailure(@NonNull Exception e) {
                                 Log.e(TAG, "There was a problem reading the data.", e);
+                                txvResult.append("There was a problem reading the data." + e.toString());
                             }
                         });
     }
@@ -174,6 +142,7 @@ public class HistoryAPI extends AppCompatActivity {
      */
     private DataSet insertFitnessData() {
         Log.i(TAG, "Creating a new data insert request.");
+        txvResult.append("Creating a new data insert request.");
 
         // [START build_insert_data_request]
         // Set a start and end time for our data, using a start time of 1 hour before this moment.
@@ -187,7 +156,7 @@ public class HistoryAPI extends AppCompatActivity {
         // Create a data source
         DataSource dataSource =
                 new DataSource.Builder()
-                        .setAppPackageName(this)
+                        .setAppPackageName(this.context)
                         .setDataType(DataType.TYPE_STEP_COUNT_DELTA)
                         .setStreamName(TAG + " - step count")
                         .setType(DataSource.TYPE_RAW)
@@ -221,6 +190,8 @@ public class HistoryAPI extends AppCompatActivity {
         java.text.DateFormat dateFormat = getDateInstance();
         Log.i(TAG, "Range Start: " + dateFormat.format(startTime));
         Log.i(TAG, "Range End: " + dateFormat.format(endTime));
+        txvResult.append("Range Start: " + dateFormat.format(startTime));
+        txvResult.append("Range End: " + dateFormat.format(endTime));
 
         DataReadRequest readRequest =
                 new DataReadRequest.Builder()
@@ -255,8 +226,8 @@ public class HistoryAPI extends AppCompatActivity {
         // If the DataReadRequest object specified aggregated data, dataReadResult will be returned
         // as buckets containing DataSets, instead of just DataSets.
         if (dataReadResult.getBuckets().size() > 0) {
-            Log.i(
-                    TAG, "Number of returned buckets of DataSets is: " + dataReadResult.getBuckets().size());
+            Log.i(TAG, "Number of returned buckets of DataSets is: " + dataReadResult.getBuckets().size());
+            txvResult.append("Number of returned buckets of DataSets is: " + dataReadResult.getBuckets().size());
             for (Bucket bucket : dataReadResult.getBuckets()) {
                 List<DataSet> dataSets = bucket.getDataSets();
                 for (DataSet dataSet : dataSets) {
@@ -265,6 +236,7 @@ public class HistoryAPI extends AppCompatActivity {
             }
         } else if (dataReadResult.getDataSets().size() > 0) {
             Log.i(TAG, "Number of returned DataSets is: " + dataReadResult.getDataSets().size());
+            txvResult.append("Number of returned DataSets is: " + dataReadResult.getDataSets().size());
             for (DataSet dataSet : dataReadResult.getDataSets()) {
                 dumpDataSet(dataSet);
             }
@@ -275,6 +247,7 @@ public class HistoryAPI extends AppCompatActivity {
     // [START parse_dataset]
     private static void dumpDataSet(DataSet dataSet) {
         Log.i(TAG, "Data returned for Data type: " + dataSet.getDataType().getName());
+        txvResult.append("Data returned for Data type: " + dataSet.getDataType().getName());
         DateFormat dateFormat = getDateTimeInstance();
 
         for (DataPoint dp : dataSet.getDataPoints()) {
@@ -282,12 +255,19 @@ public class HistoryAPI extends AppCompatActivity {
             Log.i(TAG, "\tType: " + dp.getDataType().getName());
             Log.i(TAG, "\tStart: " + dateFormat.format(dp.getStartTime(TimeUnit.MILLISECONDS)));
             Log.i(TAG, "\tEnd: " + dateFormat.format(dp.getEndTime(TimeUnit.MILLISECONDS)));
+            txvResult.append("Data point:");
+            txvResult.append("\tType: " + dp.getDataType().getName());
+            txvResult.append("\tStart: " + dateFormat.format(dp.getStartTime(TimeUnit.MILLISECONDS)));
+            txvResult.append("\tEnd: " + dateFormat.format(dp.getEndTime(TimeUnit.MILLISECONDS)));
+
             for (Field field : dp.getDataType().getFields()) {
                 if (field.equals(Field.FIELD_ACTIVITY)) {
                     Log.i(TAG, "\tField: " + field.getName() + " Value: " + dp.getValue(field).asActivity());
+                    txvResult.append("\tField: " + field.getName() + " Value: " + dp.getValue(field).asActivity());
                 }
                 else {
                     Log.i(TAG, "\tField: " + field.getName() + " Value: " + dp.getValue(field));
+                    txvResult.append("\tField: " + field.getName() + " Value: " + dp.getValue(field));
                 }
                 writetxt(dp, field);
             }
@@ -335,6 +315,7 @@ public class HistoryAPI extends AppCompatActivity {
      */
     private void deleteData() {
         Log.i(TAG, "Deleting today's step count data.");
+        txvResult.append("Deleting today's step count data.");
 
         // [START delete_dataset]
         // Set a start and end time for our data, using a start time of 1 day before this moment.
@@ -354,7 +335,7 @@ public class HistoryAPI extends AppCompatActivity {
 
         // Invoke the History API with the HistoryClient object and delete request, and then
         // specify a callback that will check the result.
-        Fitness.getHistoryClient(this, GoogleSignIn.getLastSignedInAccount(this))
+        Fitness.getHistoryClient(this.context, GoogleSignIn.getLastSignedInAccount(this.context))
                 .deleteData(request)
                 .addOnCompleteListener(
                         new OnCompleteListener<Void>() {
@@ -362,8 +343,10 @@ public class HistoryAPI extends AppCompatActivity {
                             public void onComplete(@NonNull Task<Void> task) {
                                 if (task.isSuccessful()) {
                                     Log.i(TAG, "Successfully deleted today's step count data.");
+                                    txvResult.append("Successfully deleted today's step count data.");
                                 } else {
                                     Log.e(TAG, "Failed to delete today's step count data.", task.getException());
+                                    txvResult.append("Failed to delete today's step count data." + task.getException().toString());
                                 }
                             }
                         });
@@ -402,6 +385,7 @@ public class HistoryAPI extends AppCompatActivity {
 
         // [START update_data_request]
         Log.i(TAG, "Updating the dataset in the History API.");
+        txvResult.append("Updating the dataset in the History API.");
 
         DataUpdateRequest request =
                 new DataUpdateRequest.Builder()
@@ -410,7 +394,7 @@ public class HistoryAPI extends AppCompatActivity {
                         .build();
 
         // Invoke the History API to update data.
-        return Fitness.getHistoryClient(this, GoogleSignIn.getLastSignedInAccount(this))
+        return Fitness.getHistoryClient(this.context, GoogleSignIn.getLastSignedInAccount(this.context))
                 .updateData(request)
                 .addOnCompleteListener(
                         new OnCompleteListener<Void>() {
@@ -419,8 +403,10 @@ public class HistoryAPI extends AppCompatActivity {
                                 if (task.isSuccessful()) {
                                     // At this point the data has been updated and can be read.
                                     Log.i(TAG, "Data update was successful.");
+                                    txvResult.append("Data update was successful.");
                                 } else {
                                     Log.e(TAG, "There was a problem updating the dataset.", task.getException());
+                                    txvResult.append("There was a problem updating the dataset." + task.getException().toString());
                                 }
                             }
                         });
@@ -429,6 +415,7 @@ public class HistoryAPI extends AppCompatActivity {
     /** Creates and returns a {@link DataSet} of step count data to update. */
     private DataSet updateFitnessData() {
         Log.i(TAG, "Creating a new data update request.");
+        txvResult.append("Creating a new data update request.");
 
         // [START build_update_data_request]
         // Set a start and end time for the data that fits within the time range
@@ -444,7 +431,7 @@ public class HistoryAPI extends AppCompatActivity {
         // Create a data source
         DataSource dataSource =
                 new DataSource.Builder()
-                        .setAppPackageName(this)
+                        .setAppPackageName(this.context)
                         .setDataType(DataType.TYPE_STEP_COUNT_DELTA)
                         .setStreamName(TAG + " - step count")
                         .setType(DataSource.TYPE_RAW)
@@ -464,34 +451,34 @@ public class HistoryAPI extends AppCompatActivity {
         return dataSet;
     }
 
-    @Override
-    public boolean onCreateOptionsMenu(Menu menu) {
-        // Inflate the menu; this adds items to the action bar if it is present.
-        getMenuInflater().inflate(R.menu.main, menu);
-        return true;
-    }
-
-    @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
-        int id = item.getItemId();
-        if (id == R.id.action_delete_data) {
-            deleteData();
-            return true;
-        } else if (id == R.id.action_update_data) {
-            clearLogView();
-            updateAndReadData();
-        }
-        return super.onOptionsItemSelected(item);
-    }
-
-    /** Clears all the logging message in the LogView. */
-    private void clearLogView() {
-        LogView logView = (LogView) findViewById(R.id.txvResult2);
-        logView.setText("");
-    }
+//    @Override
+//    public boolean onCreateOptionsMenu(Menu menu) {
+//        // Inflate the menu; this adds items to the action bar if it is present.
+//        getMenuInflater().inflate(R.menu.main, menu);
+//        return true;
+//    }
+//
+//    @Override
+//    public boolean onOptionsItemSelected(MenuItem item) {
+//        int id = item.getItemId();
+//        if (id == R.id.action_delete_data) {
+//            deleteData();
+//            return true;
+//        } else if (id == R.id.action_update_data) {
+//            clearLogView();
+//            updateAndReadData();
+//        }
+//        return super.onOptionsItemSelected(item);
+//    }
+//
+//    /** Clears all the logging message in the LogView. */
+//    private void clearLogView() {
+//        LogView logView = (LogView) this.context.findViewById(R.id.sample_logview);
+//        logView.setText("");
+//    }
 
     /** Initializes a custom log class that outputs both to in-app targets and logcat. */
-//    private void initializeLogging() {
+    private void initializeLogging() {
 //        // Wraps Android's native log framework.
 //        LogWrapper logWrapper = new LogWrapper();
 //        // Using Log, front-end to the logging chain, emulates android.util.log method signatures.
@@ -508,6 +495,7 @@ public class HistoryAPI extends AppCompatActivity {
 //
 //        logView.setBackgroundColor(Color.WHITE);
 //        msgFilter.setNext(logView);
-//        Log.i(TAG, "Ready.");
-//    }
+        Log.i(TAG, "Ready.");
+        txvResult.append("Ready.");
+    }
 }

@@ -82,7 +82,6 @@ public class SensorsAPI extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         // Put application specific code here.
-        Log.i(TAG, "LOG3");
 
         setContentView(R.layout.fragment_view_fragment1);
         // This method sets up our custom logger, which will print all log messages to the device
@@ -308,7 +307,7 @@ public class SensorsAPI extends AppCompatActivity {
         MessageOnlyLogFilter msgFilter = new MessageOnlyLogFilter();
         logWrapper.setNext(msgFilter);
         // On screen logging via a customized TextView.
-        LogView logView = (LogView) findViewById(R.id.sample_logview);
+        LogView logView = (LogView) findViewById(R.id.txvResult1);
 
         // Fixing this lint errors adds logic without benefit.
         // noinspection AndroidLintDeprecation
