@@ -76,7 +76,7 @@ public class Recording {
      * Fetches a list of all active subscriptions and log it. Since the logger for this sample
      * also prints to the screen, we can see what is happening in this way.
      */
-    private void dumpSubscriptionsList() {
+    void dumpSubscriptionsList() {
         // [START list_current_subscriptions]
         Fitness.getRecordingClient(this.context, GoogleSignIn.getLastSignedInAccount(this.context))
                 .listSubscriptions(DataType.TYPE_ACTIVITY_SAMPLES)
@@ -96,7 +96,7 @@ public class Recording {
     /**
      * Cancels the ACTIVITY_SAMPLE subscription by calling unsubscribe on that {@link DataType}.
      */
-    private void cancelSubscription() {
+    void cancelSubscription() {
         final String dataTypeStr = DataType.TYPE_ACTIVITY_SAMPLES.toString();
         Log.i(TAG, "Unsubscribing from data type: " + dataTypeStr);
 
@@ -122,26 +122,6 @@ public class Recording {
                 });
         // [END unsubscribe_from_datatype]
     }
-
-//    @Override
-//    public boolean onCreateOptionsMenu(Menu menu) {
-//        // Inflate the menu; this adds items to the action bar if it is present.
-//        getMenuInflater().inflate(R.menu.main, menu);
-//        return true;
-//    }
-//
-//    @Override
-//    public boolean onOptionsItemSelected(MenuItem item) {
-//        int id = item.getItemId();
-//        if (id == R.id.action_cancel_subs) {
-//            cancelSubscription();
-//            return true;
-//        } else if (id == R.id.action_dump_subs) {
-//            dumpSubscriptionsList();
-//            return true;
-//        }
-//        return super.onOptionsItemSelected(item);
-//    }
 
     /**
      *  Initializes a custom log class that outputs both to in-app targets and logcat.

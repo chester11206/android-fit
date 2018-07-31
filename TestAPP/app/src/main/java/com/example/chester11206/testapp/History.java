@@ -88,7 +88,7 @@ public class History {
 
         // Then, invoke the History API to insert the data.
         Log.i(TAG, "Inserting the dataset in the History API.");
-        txvResult.append("Inserting the dataset in the History API.");
+        //txvResult.append("Inserting the dataset in the History API.");
         return Fitness.getHistoryClient(this.context, GoogleSignIn.getLastSignedInAccount(this.context))
                 .insertData(dataSet)
                 .addOnCompleteListener(
@@ -98,10 +98,10 @@ public class History {
                                 if (task.isSuccessful()) {
                                     // At this point, the data has been inserted and can be read.
                                     Log.i(TAG, "Data insert was successful!");
-                                    txvResult.append("Data insert was successful!");
+                                    //txvResult.append("Data insert was successful!");
                                 } else {
                                     Log.e(TAG, "There was a problem inserting the dataset.", task.getException());
-                                    txvResult.append("There was a problem inserting the dataset." + task.getException().toString());
+                                    //txvResult.append("There was a problem inserting the dataset." + task.getException().toString());
                                 }
                             }
                         });
@@ -132,7 +132,7 @@ public class History {
                             @Override
                             public void onFailure(@NonNull Exception e) {
                                 Log.e(TAG, "There was a problem reading the data.", e);
-                                txvResult.append("There was a problem reading the data." + e.toString());
+                                //txvResult.append("There was a problem reading the data." + e.toString());
                             }
                         });
     }
@@ -142,7 +142,7 @@ public class History {
      */
     private DataSet insertFitnessData() {
         Log.i(TAG, "Creating a new data insert request.");
-        txvResult.append("Creating a new data insert request.");
+        //txvResult.append("Creating a new data insert request.");
 
         // [START build_insert_data_request]
         // Set a start and end time for our data, using a start time of 1 hour before this moment.
@@ -190,8 +190,8 @@ public class History {
         java.text.DateFormat dateFormat = getDateInstance();
         Log.i(TAG, "Range Start: " + dateFormat.format(startTime));
         Log.i(TAG, "Range End: " + dateFormat.format(endTime));
-        txvResult.append("Range Start: " + dateFormat.format(startTime));
-        txvResult.append("Range End: " + dateFormat.format(endTime));
+        txvResult.append("\nRange Start: " + dateFormat.format(startTime));
+        txvResult.append("\nRange End: " + dateFormat.format(endTime));
 
         DataReadRequest readRequest =
                 new DataReadRequest.Builder()
@@ -227,8 +227,11 @@ public class History {
         // as buckets containing DataSets, instead of just DataSets.
         if (dataReadResult.getBuckets().size() > 0) {
             Log.i(TAG, "Number of returned buckets of DataSets is: " + dataReadResult.getBuckets().size());
-            txvResult.append("Number of returned buckets of DataSets is: " + dataReadResult.getBuckets().size());
+            txvResult.append("\nNumber of returned buckets of DataSets is: " + dataReadResult.getBuckets().size());
+            int bucket_idx = 0;
             for (Bucket bucket : dataReadResult.getBuckets()) {
+                bucket_idx++;
+                txvResult.append("\nBucket " + bucket_idx);
                 List<DataSet> dataSets = bucket.getDataSets();
                 for (DataSet dataSet : dataSets) {
                     dumpDataSet(dataSet);
@@ -236,7 +239,7 @@ public class History {
             }
         } else if (dataReadResult.getDataSets().size() > 0) {
             Log.i(TAG, "Number of returned DataSets is: " + dataReadResult.getDataSets().size());
-            txvResult.append("Number of returned DataSets is: " + dataReadResult.getDataSets().size());
+            txvResult.append("\nNumber of returned DataSets is: " + dataReadResult.getDataSets().size());
             for (DataSet dataSet : dataReadResult.getDataSets()) {
                 dumpDataSet(dataSet);
             }
@@ -247,7 +250,7 @@ public class History {
     // [START parse_dataset]
     private static void dumpDataSet(DataSet dataSet) {
         Log.i(TAG, "Data returned for Data type: " + dataSet.getDataType().getName());
-        txvResult.append("Data returned for Data type: " + dataSet.getDataType().getName());
+        txvResult.append("\nData returned for Data type: " + dataSet.getDataType().getName());
         DateFormat dateFormat = getDateTimeInstance();
 
         for (DataPoint dp : dataSet.getDataPoints()) {
@@ -255,19 +258,19 @@ public class History {
             Log.i(TAG, "\tType: " + dp.getDataType().getName());
             Log.i(TAG, "\tStart: " + dateFormat.format(dp.getStartTime(TimeUnit.MILLISECONDS)));
             Log.i(TAG, "\tEnd: " + dateFormat.format(dp.getEndTime(TimeUnit.MILLISECONDS)));
-            txvResult.append("Data point:");
-            txvResult.append("\tType: " + dp.getDataType().getName());
-            txvResult.append("\tStart: " + dateFormat.format(dp.getStartTime(TimeUnit.MILLISECONDS)));
-            txvResult.append("\tEnd: " + dateFormat.format(dp.getEndTime(TimeUnit.MILLISECONDS)));
+            txvResult.append("\nData point:");
+            txvResult.append("\nType: " + dp.getDataType().getName());
+            txvResult.append("\nStart: " + dateFormat.format(dp.getStartTime(TimeUnit.MILLISECONDS)));
+            txvResult.append("\nEnd: " + dateFormat.format(dp.getEndTime(TimeUnit.MILLISECONDS)));
 
             for (Field field : dp.getDataType().getFields()) {
                 if (field.equals(Field.FIELD_ACTIVITY)) {
                     Log.i(TAG, "\tField: " + field.getName() + " Value: " + dp.getValue(field).asActivity());
-                    txvResult.append("\tField: " + field.getName() + " Value: " + dp.getValue(field).asActivity());
+                    txvResult.append("\nField: " + field.getName() + " Value: " + dp.getValue(field).asActivity());
                 }
                 else {
                     Log.i(TAG, "\tField: " + field.getName() + " Value: " + dp.getValue(field));
-                    txvResult.append("\tField: " + field.getName() + " Value: " + dp.getValue(field));
+                    txvResult.append("\nField: " + field.getName() + " Value: " + dp.getValue(field));
                 }
                 writetxt(dp, field);
             }
@@ -313,7 +316,7 @@ public class History {
      * Deletes a {@link DataSet} from the History API. In this example, we delete all step count data
      * for the past 24 hours.
      */
-    private void deleteData() {
+    void deleteData() {
         Log.i(TAG, "Deleting today's step count data.");
         txvResult.append("Deleting today's step count data.");
 
@@ -356,7 +359,7 @@ public class History {
      * Updates and reads data by chaning {@link Task} from {@link #updateData()} and {@link
      * #readHistoryData()}.
      */
-    private void updateAndReadData() {
+    void updateAndReadData() {
         updateData()
                 .continueWithTask(
                         new Continuation<Void, Task<DataReadResponse>>() {
@@ -385,7 +388,7 @@ public class History {
 
         // [START update_data_request]
         Log.i(TAG, "Updating the dataset in the History API.");
-        txvResult.append("Updating the dataset in the History API.");
+        txvResult.append("\nUpdating the dataset in the History API.");
 
         DataUpdateRequest request =
                 new DataUpdateRequest.Builder()
@@ -403,10 +406,10 @@ public class History {
                                 if (task.isSuccessful()) {
                                     // At this point the data has been updated and can be read.
                                     Log.i(TAG, "Data update was successful.");
-                                    txvResult.append("Data update was successful.");
+                                    txvResult.append("\nData update was successful.");
                                 } else {
                                     Log.e(TAG, "There was a problem updating the dataset.", task.getException());
-                                    txvResult.append("There was a problem updating the dataset." + task.getException().toString());
+                                    txvResult.append("\nThere was a problem updating the dataset." + task.getException().toString());
                                 }
                             }
                         });
@@ -415,7 +418,7 @@ public class History {
     /** Creates and returns a {@link DataSet} of step count data to update. */
     private DataSet updateFitnessData() {
         Log.i(TAG, "Creating a new data update request.");
-        txvResult.append("Creating a new data update request.");
+        txvResult.append("\nCreating a new data update request.");
 
         // [START build_update_data_request]
         // Set a start and end time for the data that fits within the time range
@@ -451,31 +454,10 @@ public class History {
         return dataSet;
     }
 
-//    @Override
-//    public boolean onCreateOptionsMenu(Menu menu) {
-//        // Inflate the menu; this adds items to the action bar if it is present.
-//        getMenuInflater().inflate(R.menu.main, menu);
-//        return true;
-//    }
-//
-//    @Override
-//    public boolean onOptionsItemSelected(MenuItem item) {
-//        int id = item.getItemId();
-//        if (id == R.id.action_delete_data) {
-//            deleteData();
-//            return true;
-//        } else if (id == R.id.action_update_data) {
-//            clearLogView();
-//            updateAndReadData();
-//        }
-//        return super.onOptionsItemSelected(item);
-//    }
-//
-//    /** Clears all the logging message in the LogView. */
-//    private void clearLogView() {
-//        LogView logView = (LogView) this.context.findViewById(R.id.sample_logview);
-//        logView.setText("");
-//    }
+    /** Clears all the logging message in the LogView. */
+    void clearTextView() {
+        txvResult.setText("");
+    }
 
     /** Initializes a custom log class that outputs both to in-app targets and logcat. */
     private void initializeLogging() {

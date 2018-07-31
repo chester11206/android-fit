@@ -28,4 +28,9 @@
     <string name="http_code_404">Ressource non trouvée.</string>
     <string name="loginactivity_grantsfails_quit">Ok, the application can not work if you don\'t give us the grants to access to your GDrive. Sorry we quit.</string>
 
+    <string-array name="sensors">
+        <item>Activity</item>
+        <item>Step</item>
+        <item>Distance</item>
+    </string-array>
 </resources>

@@ -3,6 +3,7 @@ package com.example.chester11206.testapp;
 import android.Manifest;
 import android.app.Activity;
 import android.content.Intent;
+import android.content.IntentSender;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.net.Uri;
@@ -21,11 +22,13 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.google.android.gms.auth.api.signin.GoogleSignIn;
+import com.google.android.gms.common.api.ResultCallback;
 import com.google.android.gms.fit.samples.common.logger.Log;
 import com.google.android.gms.fit.samples.common.logger.LogView;
 import com.google.android.gms.fit.samples.common.logger.LogWrapper;
 import com.google.android.gms.fit.samples.common.logger.MessageOnlyLogFilter;
 import com.google.android.gms.fitness.Fitness;
+import com.google.android.gms.fitness.result.DataSourcesResult;
 import com.google.android.gms.fitness.FitnessOptions;
 import com.google.android.gms.fitness.data.DataPoint;
 import com.google.android.gms.fitness.data.DataSource;
@@ -39,6 +42,8 @@ import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.android.gms.tasks.Task;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
 
 import java.io.BufferedWriter;
 import java.io.File;
@@ -46,10 +51,15 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.text.DateFormat;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 import okhttp3.Call;
 import okhttp3.FormBody;
@@ -72,121 +82,122 @@ public class Sensors {
 
     public Activity context;
 
-    private OkHttpClient mOkHttpClient;
+    // the same, one for list and one for array
+    private static ArrayList<DataType> sensors_list;
+    private static DataType [] sensors_array;
 
-    public void start(Activity activity){
+    private static final Map<String, DataType> datatype_map = createMap();
+    private static Map<String, DataType> createMap()
+    {
+        Map<String, DataType> myMap = new HashMap<String, DataType>();
+        myMap.put("Activity", DataType.TYPE_ACTIVITY_SAMPLES);
+        myMap.put("Step", DataType.TYPE_STEP_COUNT_DELTA);
+        myMap.put("Distance", DataType.TYPE_DISTANCE_DELTA);
+        return myMap;
+    }
 
+    private static int step_interval;
+    private static float distance_interval;
+    private static int user_id;
+
+    //private DatabaseReference mDatabase;
+
+    public void start(Activity activity, List<String> sensors_list){
+
+        // initiate
         this.context = activity;
+        this.sensors_list = new ArrayList<DataType>();
+        step_interval = 0;
+        distance_interval = 0;
+        user_id = 1;
 
         txvResult = (TextView) this.context.findViewById(R.id.txvResult1);
         txvResult.setMovementMethod(new ScrollingMovementMethod());
 
+        List<String> existType = new ArrayList<String>();
+        for (String key : sensors_list) {
+            if(!existType.contains(key)) {
+                this.sensors_list.add(datatype_map.get(key));
+                existType.add(key);
+            }
+        }
+        this.sensors_array = new DataType[this.sensors_list.size()];
+        this.sensors_array = this.sensors_list.toArray(this.sensors_array);
 
-
-
+        //mDatabase = FirebaseDatabase.getInstance().getReference("FitActivity");
 
         initializeLogging();
         findFitnessDataSources();
-        //postAsynFile();
-
-//        try{
-//            String filename = "/HistoryAPI.txt";
-//            // 存放檔案位置在 內部空間/Download/
-//            File path = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
-//            String filepath = path.toString() + filename;
-//            File file = new File(filepath);
-//            if(file.createNewFile()){
-//                System.out.println("Create file successed");
-//                Log.i(TAG, "Create file successed");
-//                writetxt(filepath, txvResult.getText().toString());
-//            }
-//        }catch(Exception e){
-//            System.out.println(e);
-//            Log.i(TAG, e.toString());
-//        }
-
-
     }
 
-    private void postAsynFile() {
-        mOkHttpClient=new OkHttpClient();
-//        File file = new File("/sdcard/wangshu.txt");
-//        Request request = new Request.Builder()
-//                .url("https://api.github.com/markdown/raw")
-//                .post(RequestBody.create(MEDIA_TYPE_MARKDOWN, file))
-//                .build();
-//
-//        mOkHttpClient.newCall(request).enqueue(new Snackbar.Callback() {
-//            @Override
-//            public void onFailure(Call call, IOException e) {
-//
-//            }
-//
-//            @Override
-//            public void onResponse(Call call, Response response) throws IOException {
-//                Log.i("wangshu",response.body().string());
-//            }
-//        });
+    public class FitActivity {
 
-        //OkHttpClient client = new OkHttpClient();
+        public String activity_confidence;
+        public int Steps;
+        public float Distance;
+        public String Time;
 
-        RequestBody formBody = new FormBody.Builder()
-                .add("message", "Your message")
-                .build();
-        Request request = new Request.Builder()
-                .url("https://api.github.com/markdown/raw")
-                .post(formBody)
-                .build();
-
-
-        try {
-            Response response = mOkHttpClient.newCall(request).execute();
-
-            // Do something with the response.
-        } catch (IOException e) {
-            e.printStackTrace();
+        public FitActivity() {
+            // Default constructor required for calls to DataSnapshot.getValue(User.class)
         }
+
+        public FitActivity(String activity_confidence, int steps, float distance, String time) {
+            this.activity_confidence = activity_confidence;
+            this.Steps = steps;
+            this.Distance = distance;
+            this.Time = time;
+        }
+
     }
 
     /** Finds available data sources and attempts to register on a specific {@link DataType}. */
     private void findFitnessDataSources() {
         // [START find_data_sources]
         // Note: Fitness.SensorsApi.findDataSources() requires the ACCESS_FINE_LOCATION permission.
+
         Fitness.getSensorsClient(this.context, GoogleSignIn.getLastSignedInAccount(this.context))
                 .findDataSources(
                         new DataSourcesRequest.Builder()
-                                .setDataTypes(//DataType.TYPE_LOCATION_SAMPLE,
-                                        DataType.TYPE_STEP_COUNT_DELTA,
-                                        DataType.TYPE_DISTANCE_DELTA,
-                                        DataType.TYPE_SPEED,
-                                        DataType.TYPE_ACTIVITY_SAMPLES)
+                                .setDataTypes(sensors_array
+//                                        DataType.TYPE_LOCATION_SAMPLE,
+//                                        DataType.TYPE_STEP_COUNT_DELTA,
+//                                        DataType.TYPE_DISTANCE_DELTA,
+//                                        DataType.TYPE_HEIGHT,
+//                                        DataType.TYPE_SPEED,
+                                        //DataType.TYPE_ACTIVITY_SAMPLES
+                                )
                                 .setDataSourceTypes(DataSource.TYPE_RAW, DataSource.TYPE_DERIVED)
                                 .build())
                 .addOnSuccessListener(
                         new OnSuccessListener<List<DataSource>>() {
                             @Override
                             public void onSuccess(List<DataSource> dataSources) {
+                                List<DataType> existType = new ArrayList<DataType>();
                                 for (DataSource dataSource : dataSources) {
                                     Log.i(TAG, "Data Source Found: ");
                                     Log.i(TAG, "\tData Source: " + dataSource.toString());
                                     Log.i(TAG, "\tData Source type: " + dataSource.getDataType().getName());
-                                    txvResult.append("Data Source Found: ");
-                                    txvResult.append("\nData Source: " + dataSource.toString());
-                                    txvResult.append("\nData Source type: " + dataSource.getDataType().getName());
+                                    //txvResult.append("Data Source Found: ");
+                                    //txvResult.append("\nData Source: " + dataSource.toString());
+                                    //txvResult.append("\nData Source type: " + dataSource.getDataType().getName());
                                     //Log.i(TAG, "\tData Source type equal: " + dataSource.getDataType().equals(DataType.TYPE_ACTIVITY_SAMPLES));
                                     //Log.i(TAG, "\tmListener null: " + (mListener == null));
 
                                     // Let's register a listener to receive Activity data!
                                     if (//dataSource.getDataType().equals(DataType.TYPE_LOCATION_SAMPLE) ||
-                                            dataSource.getDataType().equals(DataType.TYPE_STEP_COUNT_DELTA) ||
-                                                    dataSource.getDataType().equals(DataType.TYPE_DISTANCE_DELTA) ||
-                                                    dataSource.getDataType().equals(DataType.TYPE_SPEED) ||
-                                                    dataSource.getDataType().equals(DataType.TYPE_ACTIVITY_SAMPLES)
+//                                            dataSource.getDataType().equals(DataType.TYPE_STEP_COUNT_DELTA) ||
+//                                                    dataSource.getDataType().equals(DataType.TYPE_DISTANCE_DELTA) ||
+//                                                    dataSource.getDataType().equals(DataType.TYPE_HEIGHT) ||
+//                                                    dataSource.getDataType().equals(DataType.TYPE_SPEED) ||
+//                                                    dataSource.getDataType().equals(DataType.TYPE_ACTIVITY_SAMPLES)
+                                             sensors_list.contains(dataSource.getDataType()) && !existType.contains(dataSource.getDataType())
                                         //&& mListener == null
                                             ) {
+
                                         Log.i(TAG, "\tData source for " + dataSource.getDataType().getName() + " found!  Registering.");
-                                        txvResult.append("\tData source for " + dataSource.getDataType().getName() + " found!  Registering.");
+                                        txvResult.append("\nData source for " + dataSource.getDataType().getName() + " found!  Registering.");
                                         registerFitnessDataListener(dataSource, dataSource.getDataType());
+                                        existType.add(dataSource.getDataType());
                                     }
                                 }
                             }
@@ -213,7 +224,7 @@ public class Sensors {
                     @Override
                     public void onDataPoint(DataPoint dataPoint) {
                         Log.i(TAG, "Detecting...");
-                        txvResult.append("Detecting...");
+                        //txvResult.append("Detecting...");
 
                         Calendar cal = Calendar.getInstance();
                         Date now = new Date();
@@ -221,14 +232,35 @@ public class Sensors {
                         long TimeNow = cal.getTimeInMillis();
                         DateFormat dateFormat = getDateTimeInstance();
                         Log.i(TAG, "Listen Time: " + dateFormat.format(TimeNow));
-                        txvResult.append("Listen Time: " + dateFormat.format(TimeNow));
+                        //txvResult.append("\nListen Time: " + dateFormat.format(TimeNow));
 
                         for (Field field : dataPoint.getDataType().getFields()) {
                             Value val = dataPoint.getValue(field);
+//                            if (field.equals(Field.FIELD_STEPS)) {
+//                                step_interval += val.asInt();
+//                            }
+//                            else if (field.equals(Field.FIELD_DISTANCE)) {
+//                                distance_interval += val.asFloat();
+//                            }
+//                            else if (field.equals(Field.FIELD_ACTIVITY_CONFIDENCE)) {
+//                                txvResult.append("\nListen Time: " + dateFormat.format(TimeNow));
+//                                txvResult.append("\n" + field.getName() + ": " + val);
+//                                txvResult.append("\nStep: " + step_interval);
+//                                txvResult.append("\nDistance: " + distance_interval);
+//
+////                                FitActivity fitActivity = new FitActivity(val.toString(), step_interval, distance_interval, dateFormat.format(TimeNow));
+////                                FirebaseDatabase database = FirebaseDatabase.getInstance();
+////                                DatabaseReference mDatabase = database.getReference("FitActivity");
+////                                mDatabase.child(Integer.toString(user_id)).setValue(fitActivity);
+////                                user_id ++;
+//
+//                                step_interval = 0;
+//                                distance_interval = 0;
+//                            }
                             Log.i(TAG, "Detected DataPoint field: " + field.getName());
                             Log.i(TAG, "Detected DataPoint value: " + val);
-                            txvResult.append("Detected DataPoint field: " + field.getName());
-                            txvResult.append("Detected DataPoint value: " + val);
+                            txvResult.append("\nDetected DataPoint field: " + field.getName());
+                            txvResult.append("\nDetected DataPoint value: " + val);
                         }
                     }
                 };
@@ -238,7 +270,8 @@ public class Sensors {
                         new SensorRequest.Builder()
                                 .setDataSource(dataSource) // Optional but recommended for custom data sets.
                                 .setDataType(dataType) // Can't be omitted.
-                                .setSamplingRate(10, TimeUnit.SECONDS)
+                                .setSamplingRate(1, TimeUnit.SECONDS)
+                                .setMaxDeliveryLatency(1, TimeUnit.SECONDS)
                                 .build(),
                         mListener)
                 .addOnCompleteListener(
@@ -247,10 +280,10 @@ public class Sensors {
                             public void onComplete(@NonNull Task<Void> task) {
                                 if (task.isSuccessful()) {
                                     Log.i(TAG, "Listener registered: " + dataType.getName());
-                                    txvResult.append("Listener registered: " + dataType.getName());
+                                    txvResult.append("\nListener registered: " + dataType.getName());
                                 } else {
                                     Log.e(TAG, "Listener not registered.", task.getException());
-                                    txvResult.append("Listener not registered." + task.getException().toString());
+                                    txvResult.append("\nListener not registered." + task.getException().toString());
                                 }
                             }
                         });
@@ -258,7 +291,7 @@ public class Sensors {
     }
 
     /** Unregisters the listener with the Sensors API. */
-    private void unregisterFitnessDataListener() {
+    void unregisterFitnessDataListener() {
         if (mListener == null) {
             // This code only activates one listener at a time.  If there's no listener, there's
             // nothing to unregister.
@@ -277,32 +310,15 @@ public class Sensors {
                             public void onComplete(@NonNull Task<Boolean> task) {
                                 if (task.isSuccessful() && task.getResult()) {
                                     Log.i(TAG, "Listener was removed!");
-                                    txvResult.append("Listener was removed!");
+                                    txvResult.append("\nListener was removed!");
                                 } else {
                                     Log.i(TAG, "Listener was not removed.");
-                                    txvResult.append("Listener was not removed!");
+                                    txvResult.append("\nListener was not removed!");
                                 }
                             }
                         });
         // [END unregister_data_listener]
     }
-
-//    @Override
-//    public boolean onCreateOptionsMenu(Menu menu) {
-//        // Inflate the menu; this adds items to the action bar if it is present.
-//        getMenuInflater().inflate(R.menu.main, menu);
-//        return true;
-//    }
-//
-//    @Override
-//    public boolean onOptionsItemSelected(MenuItem item) {
-//        int id = item.getItemId();
-//        if (id == R.id.action_unregister_listener) {
-//            unregisterFitnessDataListener();
-//            return true;
-//        }
-//        return super.onOptionsItemSelected(item);
-//    }
 
     /** Initializes a custom log class that outputs both to in-app targets and logcat. */
     private void initializeLogging() {
@@ -323,25 +339,7 @@ public class Sensors {
 //        logView.setBackgroundColor(Color.WHITE);
 //        msgFilter.setNext(logView);
         Log.i(TAG, "Ready.");
-        txvResult.append("Ready.");
-    }
-
-    public static void writetxt(String file, String content) {
-        BufferedWriter out = null;
-        try {
-            out = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file, true)));
-            out.write(content);
-        } catch (Exception e) {
-            e.printStackTrace();
-        } finally {
-            try {
-                if(out != null){
-                    out.close();
-                }
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
+        txvResult.append("\nReady.");
     }
 
 

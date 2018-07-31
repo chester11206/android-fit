@@ -83,7 +83,7 @@ public class SensorsAPI extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         // Put application specific code here.
 
-        setContentView(R.layout.fragment_view_fragment1);
+        setContentView(R.layout.sensors_view);
         // This method sets up our custom logger, which will print all log messages to the device
         // screen, as well as to adb logcat.
         initializeLogging();

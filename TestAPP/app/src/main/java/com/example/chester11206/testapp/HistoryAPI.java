@@ -21,7 +21,6 @@ import static java.text.DateFormat.getTimeInstance;
 
 import android.app.Activity;
 import android.content.Intent;
-import android.graphics.Color;
 import android.os.Bundle;
 import android.os.Environment;
 import android.support.annotation.NonNull;
@@ -31,8 +30,6 @@ import android.view.MenuItem;
 import com.google.android.gms.auth.api.signin.GoogleSignIn;
 import com.google.android.gms.fit.samples.common.logger.Log;
 import com.google.android.gms.fit.samples.common.logger.LogView;
-import com.google.android.gms.fit.samples.common.logger.LogWrapper;
-import com.google.android.gms.fit.samples.common.logger.MessageOnlyLogFilter;
 import com.google.android.gms.fitness.Fitness;
 import com.google.android.gms.fitness.FitnessOptions;
 import com.google.android.gms.fitness.data.Bucket;
@@ -72,7 +69,7 @@ public class HistoryAPI extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.fragment_view_fragment2);
+        setContentView(R.layout.history_view);
         // This method sets up our custom logger, which will print all log messages to the device
         // screen, as well as to adb logcat.
         //initializeLogging();

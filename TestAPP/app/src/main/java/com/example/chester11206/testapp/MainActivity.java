@@ -2,7 +2,10 @@ package com.example.chester11206.testapp;
 
 import android.Manifest;
 import android.app.Activity;
+import android.app.AlertDialog;
+import android.app.Dialog;
 import android.app.LocalActivityManager;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Handler;
@@ -17,10 +20,14 @@ import android.support.v4.view.PagerAdapter;
 import android.support.v4.view.ViewPager;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.text.method.ScrollingMovementMethod;
 import android.view.LayoutInflater;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import com.google.android.gms.auth.api.signin.GoogleSignIn;
@@ -43,17 +50,23 @@ import okhttp3.Response;
 
 public class MainActivity extends AppCompatActivity {
 
+    public Activity context = this;
+
+    private Sensors sensorsapi;
+    private History historyapi;
+    private Recording recordingapi;
+
     private ViewPager mViewPager;
     private TabLayout mTabLayout;
-    private List<View> views;
-    private View view1,view2,view3;
+    private View sensorsView, histroyView, recordingView;
     public static int lastPosition = 0;
-    public Activity context = this;
-    private OkHttpClient mOkHttpClient;
-    public static final MediaType MEDIA_TYPE_MARKDOWN
-            = MediaType.parse("text/x-markdown; charset=utf-8");
+
+    boolean[] flags = new boolean[]{false,false,false};//init multichoice = false
+    String[] items = null;
+    private static List<String> sensors_list = new ArrayList<String>();
 
     public static final String TAG = "MyFit";
+    TextView txvResult;
 
     private static final int REQUEST_OAUTH_REQUEST_CODE = 1;
     private static final int REQUEST_PERMISSIONS_REQUEST_CODE = 34;
@@ -63,28 +76,54 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        mViewPager = (ViewPager) findViewById(R.id.container);
+        /** init three api */
+        sensorsapi = new com.example.chester11206.testapp.Sensors();
+        historyapi = new com.example.chester11206.testapp.History();
+        recordingapi = new com.example.chester11206.testapp.Recording();
 
+        /** set viewpage and layout */
+        mViewPager = (ViewPager) findViewById(R.id.container);
+        setupViewPager(mViewPager);
         mViewPager.addOnPageChangeListener(new ViewPager.OnPageChangeListener() {
             @Override
             public void onPageScrolled(int position, float positionOffset, int positionOffsetPixels) {}
             @Override
+            public void onPageScrollStateChanged(int state) {}
+            @Override
             public void onPageSelected(int position) {
                 lastPosition = position;
+                switch (position) {
+                    case 2:
+                        Button historybtn = (Button) findViewById(R.id.historybtn);
+                        historybtn.setOnClickListener(new View.OnClickListener(){
+                            public void onClick(View view){
+                                historyapi.start(context);
+                            }
+
+                        });
+                    case 3:
+                        Button recordingbtn = (Button) findViewById(R.id.recordingbtn);
+                        recordingbtn.setOnClickListener(new View.OnClickListener(){
+                            public void onClick(View view){
+                                recordingapi.start(context);
+                            }
+
+                        });
+                }
             }
-            @Override
-            public void onPageScrollStateChanged(int state) {}
         });
-
-        setupViewPager(mViewPager);
-
         mTabLayout = (TabLayout) findViewById(R.id.tabs);
         mTabLayout.setupWithViewPager(mViewPager);
 
+        /** set multichoice dialog */
+        items = getResources().getStringArray(R.array.sensors);
+
+
+        /** Log in */
         LogIn();
     }
 
-    /** General login */
+/** General login */
     private void LogIn(){
 
         // When permissions are revoked the app is restarted so onCreate is sufficient to check for
@@ -100,6 +139,7 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
+/** Activity Result */
     @Override
     protected void onResume() {
         super.onResume();
@@ -118,6 +158,7 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+/** Account Permission */
     /** Checks if user's account has OAuth permission to Fitness API. */
     private boolean hasOAuthPermission() {
         FitnessOptions fitnessOptions = getFitnessSignInOptions();
@@ -192,102 +233,48 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-
+/** Viewpage Setting */
     private void setupViewPager(ViewPager viewPager) {
-//        ViewPagerAdapter adapter = new ViewPagerAdapter(getSupportFragmentManager());
-//        adapter.addFragment(new ViewFragment1(), "Sensors");
-//        adapter.addFragment(new ViewFragment2(), "History");
-//        adapter.addFragment(new ViewFragment3(), "Recording");
 
         MyViewPagerAdapter adapter = new MyViewPagerAdapter();
         LayoutInflater inflater=getLayoutInflater();
-        view1=inflater.inflate(R.layout.fragment_view_fragment1, null);
-        view2=inflater.inflate(R.layout.fragment_view_fragment2, null);
-        view3=inflater.inflate(R.layout.fragment_view_fragment3, null);
-        adapter.add(view1, "Sensors");
-        adapter.add(view2, "History");
-        adapter.add(view3, "Recording");
+        sensorsView = inflater.inflate(R.layout.sensors_view, null);
+        histroyView = inflater.inflate(R.layout.history_view, null);
+        recordingView = inflater.inflate(R.layout.recording_view, null);
+        adapter.add(sensorsView, "Sensors");
+        adapter.add(histroyView, "History");
+        adapter.add(recordingView, "Recording");
 
         viewPager.setAdapter(adapter);
     }
 
-    class ViewPagerAdapter extends FragmentPagerAdapter {
-        private final List<Fragment> mFragmentList = new ArrayList<>();
-        private final List<String> mFragmentTitleList = new ArrayList<>();
-
-        public ViewPagerAdapter(FragmentManager manager) {
-            super(manager);
-        }
-
-        @Override
-        public Fragment getItem(int position) {
-            return mFragmentList.get(position);
-        }
-
-        @Override
-        public int getCount() {
-            return mFragmentList.size();
-        }
-
-        public void addFragment(Fragment fragment, String title) {
-            mFragmentList.add(fragment);
-            mFragmentTitleList.add(title);
-        }
-
-        @Override
-        public CharSequence getPageTitle(int position) {
-            return mFragmentTitleList.get(position);
-        }
-    }
-
     public class MyViewPagerAdapter extends PagerAdapter {
-        private final List<View> mListViews = new ArrayList<>();;
-        private final List<String> mListTitles = new ArrayList<>();;
-
-//        public MyViewPagerAdapter(List<View> mListViews) {
-//            this.mListViews = mListViews;
-//        }
+        private final List<View> mListViews = new ArrayList<>();
+        private final List<String> mListTitles = new ArrayList<>();
 
         @Override
         public void destroyItem(ViewGroup container, int position, Object object) 	{
             container.removeView(mListViews.get(position));
         }
 
-
         @Override
         public Object instantiateItem(ViewGroup container, int position) {
-            Log.d(TAG, String.valueOf(position));
             container.addView(mListViews.get(position), 0);
-            if(position < 2) {
-                Button sensorsbtn = (Button) findViewById(R.id.sensorsbtn);
-                sensorsbtn.setOnClickListener(new View.OnClickListener() {
-                    public void onClick(View view) {
-                        new com.example.chester11206.testapp.Sensors().start(context);
-
+            Button sensorsbtn = (Button) findViewById(R.id.sensorsbtn);
+            sensorsbtn.setOnClickListener(new View.OnClickListener() {
+                public void onClick(View view) {
+                    txvResult = (TextView) findViewById(R.id.txvResult1);
+                    txvResult.setMovementMethod(new ScrollingMovementMethod());
+                    if (sensors_list.size() > 0){
+                        txvResult.setText("");
+                        sensorsapi.start(context, sensors_list);
+                    }
+                    else {
+                        txvResult.setText("You haven't choose the sensors!");
                     }
 
-                });
-            }
-            else if (position == 2){
-                Button historybtn = (Button) findViewById(R.id.historybtn);
-                historybtn.setOnClickListener(new View.OnClickListener(){
-                    public void onClick(View view){
-                        new com.example.chester11206.testapp.History().start(context);
-                    }
-
-                });
-            }
-            else {
-                Button recordingbtn = (Button) findViewById(R.id.recordingbtn);
-                recordingbtn.setOnClickListener(new View.OnClickListener(){
-                    public void onClick(View view){
-                        new com.example.chester11206.testapp.Recording().start(context);
-                    }
-
-                });
-            }
-
-
+                }
+            });
             return mListViews.get(position);
         }
 
@@ -312,43 +299,114 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private void postAsynFile() {
-        mOkHttpClient=new OkHttpClient();
-//        File file = new File("/sdcard/wangshu.txt");
-//        Request request = new Request.Builder()
-//                .url("https://api.github.com/markdown/raw")
-//                .post(RequestBody.create(MEDIA_TYPE_MARKDOWN, file))
-//                .build();
-//
-//        mOkHttpClient.newCall(request).enqueue(new Snackbar.Callback() {
-//            @Override
-//            public void onFailure(Call call, IOException e) {
-//
-//            }
-//
-//            @Override
-//            public void onResponse(Call call, Response response) throws IOException {
-//                Log.i("wangshu",response.body().string());
-//            }
-//        });
-
-        //OkHttpClient client = new OkHttpClient();
-
-        RequestBody formBody = new FormBody.Builder()
-                .add("message", "Your message")
-                .build();
-        Request request = new Request.Builder()
-                .url("https://api.github.com/markdown/raw")
-                .post(formBody)
-                .build();
-
-
-        try {
-            Response response = mOkHttpClient.newCall(request).execute();
-
-            // Do something with the response.
-        } catch (IOException e) {
-            e.printStackTrace();
+/** menu setting */
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        // Inflate the menu; this adds items to the action bar if it is present.
+        switch (mViewPager.getCurrentItem()) {
+            case 0:
+                getMenuInflater().inflate(R.menu.sensors_menu, menu);
+                break;
+            case 1:
+                getMenuInflater().inflate(R.menu.history_menu, menu);
+                break;
+            case 2:
+                getMenuInflater().inflate(R.menu.recording_menu, menu);
+                break;
         }
+        return true;
+    }
+
+    @Override
+    public boolean onPrepareOptionsMenu(Menu menu) {
+        invalidateOptionsMenu();
+        return super.onPrepareOptionsMenu(menu);
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        int id = item.getItemId();
+        if (id == R.id.action_settings) {
+            showDialog(1);
+        }
+        else if (id == R.id.action_unregister_listener) {
+            sensorsapi.unregisterFitnessDataListener();
+            return true;
+        }
+        else if (id == R.id.action_delete_data) {
+            historyapi.deleteData();
+            return true;
+        } else if (id == R.id.action_update_data) {
+            historyapi.clearTextView();
+            historyapi.updateAndReadData();
+        }
+        else if (id == R.id.action_cancel_subs) {
+            recordingapi.cancelSubscription();
+            return true;
+        } else if (id == R.id.action_dump_subs) {
+            recordingapi.dumpSubscriptionsList();
+            return true;
+        }
+        return super.onOptionsItemSelected(item);
+    }
+
+/** create dialog by id */
+    @Override
+    protected Dialog onCreateDialog(int id) {
+        Dialog dialog = null;
+        final boolean[] tempFlags = flags.clone();
+        switch (id) {
+            case 1:
+                AlertDialog.Builder builder = new AlertDialog.Builder(this);
+                builder.setTitle("Choose Sensors");
+                builder.setMultiChoiceItems(items, flags, new DialogInterface.OnMultiChoiceClickListener() {
+
+                    @Override
+                    public void onClick(DialogInterface dialog, int which, boolean isChecked) {
+                        tempFlags[which] = isChecked;
+                    }
+                });
+                builder.setPositiveButton("OK", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        boolean hasChoose = false;
+                        for (boolean flag : tempFlags) {
+                            if (flag) {
+                                hasChoose = true;
+                                break;
+                            }
+                        }
+                        if (hasChoose){
+                            List<String> result = new ArrayList<String>();
+                            flags = tempFlags.clone();
+                            for (int i = 0; i < flags.length; i++) {
+                                if(flags[i])
+                                {
+                                    result.add(items[i]);
+                                }
+                            }
+                            sensors_list = new ArrayList<String>(result);
+                        }
+                        else {
+                            txvResult = (TextView) findViewById(R.id.txvResult1);
+                            txvResult.setMovementMethod(new ScrollingMovementMethod());
+                            txvResult.setText("");
+                            txvResult.setText("You haven't choose the sensors!");
+                        }
+                    }
+                });
+                builder.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+
+                    }
+                });
+                dialog = builder.create();
+                break;
+
+            default:
+                break;
+        }
+        return dialog;
     }
 }
