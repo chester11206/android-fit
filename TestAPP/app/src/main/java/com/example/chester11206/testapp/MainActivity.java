@@ -37,8 +37,14 @@ import com.google.android.gms.fitness.data.DataType;
 
 import java.io.File;
 import java.io.IOException;
+import java.text.DateFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import okhttp3.Call;
 import okhttp3.FormBody;
@@ -47,6 +53,8 @@ import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
+
+import static java.text.DateFormat.getDateTimeInstance;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -61,9 +69,29 @@ public class MainActivity extends AppCompatActivity {
     private View sensorsView, histroyView, recordingView;
     public static int lastPosition = 0;
 
-    boolean[] flags = new boolean[]{false,false,false};//init multichoice = false
+    boolean[] flags = new boolean[]{};//init multichoice = false
     String[] items = null;
     private static List<String> sensors_list = new ArrayList<String>();
+    public static final Map<String, DataType> datatype_map = createMap();
+    private static Map<String, DataType> createMap()
+    {
+        Map<String, DataType> myMap = new HashMap<String, DataType>();
+        myMap.put("Activity", DataType.TYPE_ACTIVITY_SAMPLES);
+        myMap.put("Step", DataType.TYPE_STEP_COUNT_DELTA);
+        myMap.put("Distance", DataType.TYPE_DISTANCE_DELTA);
+        myMap.put("Location", DataType.TYPE_LOCATION_SAMPLE);
+        myMap.put("Wheel RPM", DataType.TYPE_CYCLING_WHEEL_RPM);
+        myMap.put("Wheel Revolution", DataType.TYPE_CYCLING_WHEEL_REVOLUTION);
+        myMap.put("Speed", DataType.TYPE_SPEED);
+        myMap.put("Weight", DataType.TYPE_WEIGHT);
+        myMap.put("Nutrition", DataType.TYPE_NUTRITION);
+        myMap.put("Heart Rate BPM", DataType.TYPE_HEART_RATE_BPM);
+        myMap.put("Calories", DataType.TYPE_CALORIES_EXPENDED);
+        return myMap;
+    }
+
+    private static final int msgKey1 = 1;
+    private TextView mTime;
 
     public static final String TAG = "MyFit";
     TextView txvResult;
@@ -75,6 +103,8 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        mTime = (TextView) findViewById(R.id.mytime);
+        new TimeThread().start();
 
         /** init three api */
         sensorsapi = new com.example.chester11206.testapp.Sensors();
@@ -117,6 +147,8 @@ public class MainActivity extends AppCompatActivity {
 
         /** set multichoice dialog */
         items = getResources().getStringArray(R.array.sensors);
+        flags = new boolean[items.length];
+        Arrays.fill(flags, false);
 
 
         /** Log in */
@@ -137,6 +169,45 @@ public class MainActivity extends AppCompatActivity {
             requestRuntimePermissions();
         }
 
+    }
+
+/** Show Now Time */
+    public class TimeThread extends Thread {
+        @Override
+        public void run () {
+            do {
+                try {
+                    Thread.sleep(1000);
+                    Message msg = new Message();
+                    msg.what = msgKey1;
+                    mHandler.sendMessage(msg);
+                }
+                catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            } while(true);
+        }
+    }
+    private Handler mHandler = new Handler() {
+        @Override
+        public void handleMessage (Message msg) {
+            super.handleMessage(msg);
+            switch (msg.what) {
+                case msgKey1:
+                    getTime();
+                    break;
+                default:
+                    break;
+            }
+        }
+    };
+    public void getTime(){
+        Calendar cal = Calendar.getInstance();
+        Date now = new Date();
+        cal.setTime(now);
+        long TimeNow = cal.getTimeInMillis();
+        DateFormat dateFormat = getDateTimeInstance();
+        mTime.setText(dateFormat.format(TimeNow));
     }
 
 /** Activity Result */
@@ -180,55 +251,69 @@ public class MainActivity extends AppCompatActivity {
 
     /** Gets the {@link FitnessOptions} in order to check or request OAuth permission for the user. */
     private FitnessOptions getFitnessSignInOptions() {
-        return FitnessOptions.builder()
-                .addDataType(DataType.TYPE_LOCATION_SAMPLE)
-                .addDataType(DataType.TYPE_STEP_COUNT_DELTA, FitnessOptions.ACCESS_WRITE)
-                .addDataType(DataType.AGGREGATE_STEP_COUNT_DELTA, FitnessOptions.ACCESS_WRITE)
-                .addDataType(DataType.TYPE_ACTIVITY_SAMPLES)
+
+        return  FitnessOptions.builder()
+                .addDataType(DataType.TYPE_LOCATION_SAMPLE,FitnessOptions.ACCESS_WRITE)
+                .addDataType(DataType.TYPE_LOCATION_SAMPLE,FitnessOptions.ACCESS_READ)
+                .addDataType(DataType.TYPE_STEP_COUNT_DELTA,FitnessOptions.ACCESS_WRITE)
+                .addDataType(DataType.TYPE_STEP_COUNT_DELTA,FitnessOptions.ACCESS_READ)
+                .addDataType(DataType.TYPE_DISTANCE_DELTA,FitnessOptions.ACCESS_WRITE)
+                .addDataType(DataType.TYPE_DISTANCE_DELTA,FitnessOptions.ACCESS_READ)
+                .addDataType(DataType.TYPE_SPEED,FitnessOptions.ACCESS_WRITE)
+                .addDataType(DataType.TYPE_SPEED,FitnessOptions.ACCESS_READ)
+                .addDataType(DataType.TYPE_ACTIVITY_SAMPLES,FitnessOptions.ACCESS_WRITE)
+                .addDataType(DataType.TYPE_ACTIVITY_SAMPLES,FitnessOptions.ACCESS_READ)
+                .addDataType(DataType.TYPE_WEIGHT,FitnessOptions.ACCESS_WRITE)
+                .addDataType(DataType.TYPE_WEIGHT,FitnessOptions.ACCESS_READ)
+                .addDataType(DataType.TYPE_HEART_RATE_BPM,FitnessOptions.ACCESS_WRITE)
+                .addDataType(DataType.TYPE_HEART_RATE_BPM,FitnessOptions.ACCESS_READ)
+                .addDataType(DataType.TYPE_CYCLING_WHEEL_REVOLUTION,FitnessOptions.ACCESS_WRITE)
+                .addDataType(DataType.TYPE_CYCLING_WHEEL_REVOLUTION,FitnessOptions.ACCESS_READ)
+                .addDataType(DataType.TYPE_CYCLING_WHEEL_RPM,FitnessOptions.ACCESS_WRITE)
+                .addDataType(DataType.TYPE_CYCLING_WHEEL_RPM,FitnessOptions.ACCESS_READ)
+                .addDataType(DataType.TYPE_NUTRITION,FitnessOptions.ACCESS_WRITE)
+                .addDataType(DataType.TYPE_NUTRITION,FitnessOptions.ACCESS_READ)
+                .addDataType(DataType.TYPE_CALORIES_EXPENDED,FitnessOptions.ACCESS_WRITE)
+                .addDataType(DataType.TYPE_CALORIES_EXPENDED,FitnessOptions.ACCESS_READ)
                 .build();
     }
 
     /** Returns the current state of the permissions needed. */
     private boolean hasRuntimePermissions() {
-        int permissionState =
+        int permissionLocation =
                 ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION);
-        return permissionState == PackageManager.PERMISSION_GRANTED;
+        int permissionBody =
+                ActivityCompat.checkSelfPermission(this, Manifest.permission.BODY_SENSORS);
+        return (permissionLocation == PackageManager.PERMISSION_GRANTED)
+                && (permissionBody == PackageManager.PERMISSION_GRANTED)
+                ;
     }
 
     private void requestRuntimePermissions() {
-        boolean shouldProvideRationale =
-                ActivityCompat.shouldShowRequestPermissionRationale(
-                        this, Manifest.permission.ACCESS_FINE_LOCATION);
-
-        // Provide an additional rationale to the user. This would happen if the user denied the
-        // request previously, but didn't check the "Don't ask again" checkbox.
-        if (shouldProvideRationale) {
-            Log.i(TAG, "Displaying permission rationale to provide additional context.");
-            Snackbar.make(
-                    findViewById(R.id.sensors_view),
-                    R.string.permission_rationale,
-                    Snackbar.LENGTH_INDEFINITE)
-                    .setAction(
-                            R.string.ok,
-                            new View.OnClickListener() {
-                                @Override
-                                public void onClick(View view) {
-                                    // Request permission
-                                    ActivityCompat.requestPermissions(
-                                            context,
-                                            new String[] {Manifest.permission.ACCESS_FINE_LOCATION},
-                                            REQUEST_PERMISSIONS_REQUEST_CODE);
-                                }
-                            })
-                    .show();
-        } else {
-            Log.i(TAG, "Requesting permission");
-            // Request permission. It's possible this can be auto answered if device policy
-            // sets the permission in a given state or the user denied the permission
-            // previously and checked "Never ask again".
+        boolean permissionLocation =
+                (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
+                        == PackageManager.PERMISSION_GRANTED);
+        boolean permissionBody =
+                (ActivityCompat.checkSelfPermission(this, Manifest.permission.BODY_SENSORS)
+                        == PackageManager.PERMISSION_GRANTED);
+        if (!permissionLocation) {
+            if (!permissionBody) {
+                ActivityCompat.requestPermissions(
+                        context,
+                        new String[] {Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.BODY_SENSORS},
+                        REQUEST_PERMISSIONS_REQUEST_CODE);
+            }
+            else {
+                ActivityCompat.requestPermissions(
+                        context,
+                        new String[] {Manifest.permission.ACCESS_FINE_LOCATION},
+                        REQUEST_PERMISSIONS_REQUEST_CODE);
+            }
+        }
+        else if (!permissionBody) {
             ActivityCompat.requestPermissions(
                     context,
-                    new String[] {Manifest.permission.ACCESS_FINE_LOCATION},
+                    new String[] {Manifest.permission.BODY_SENSORS},
                     REQUEST_PERMISSIONS_REQUEST_CODE);
         }
     }
@@ -266,7 +351,7 @@ public class MainActivity extends AppCompatActivity {
                     txvResult = (TextView) findViewById(R.id.txvResult1);
                     txvResult.setMovementMethod(new ScrollingMovementMethod());
                     if (sensors_list.size() > 0){
-                        txvResult.setText("");
+                        txvResult.setText(sensors_list.toString());
                         sensorsapi.start(context, sensors_list);
                     }
                     else {

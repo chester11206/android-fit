@@ -22,7 +22,10 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.google.android.gms.auth.api.signin.GoogleSignIn;
+import com.google.android.gms.common.Scopes;
+import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.common.api.ResultCallback;
+import com.google.android.gms.common.api.Scope;
 import com.google.android.gms.fit.samples.common.logger.Log;
 import com.google.android.gms.fit.samples.common.logger.LogView;
 import com.google.android.gms.fit.samples.common.logger.LogWrapper;
@@ -86,16 +89,6 @@ public class Sensors {
     private static ArrayList<DataType> sensors_list;
     private static DataType [] sensors_array;
 
-    private static final Map<String, DataType> datatype_map = createMap();
-    private static Map<String, DataType> createMap()
-    {
-        Map<String, DataType> myMap = new HashMap<String, DataType>();
-        myMap.put("Activity", DataType.TYPE_ACTIVITY_SAMPLES);
-        myMap.put("Step", DataType.TYPE_STEP_COUNT_DELTA);
-        myMap.put("Distance", DataType.TYPE_DISTANCE_DELTA);
-        return myMap;
-    }
-
     private static int step_interval;
     private static float distance_interval;
     private static int user_id;
@@ -117,7 +110,7 @@ public class Sensors {
         List<String> existType = new ArrayList<String>();
         for (String key : sensors_list) {
             if(!existType.contains(key)) {
-                this.sensors_list.add(datatype_map.get(key));
+                this.sensors_list.add(MainActivity.datatype_map.get(key));
                 existType.add(key);
             }
         }
@@ -155,10 +148,12 @@ public class Sensors {
         // [START find_data_sources]
         // Note: Fitness.SensorsApi.findDataSources() requires the ACCESS_FINE_LOCATION permission.
 
-        Fitness.getSensorsClient(this.context, GoogleSignIn.getLastSignedInAccount(this.context))
+        final List<DataType> existType = new ArrayList<DataType>();
+            Fitness.getSensorsClient(context, GoogleSignIn.getLastSignedInAccount(context))
                 .findDataSources(
                         new DataSourcesRequest.Builder()
                                 .setDataTypes(sensors_array
+                                        //DataType.TYPE_CYCLING_WHEEL_REVOLUTION
 //                                        DataType.TYPE_LOCATION_SAMPLE,
 //                                        DataType.TYPE_STEP_COUNT_DELTA,
 //                                        DataType.TYPE_DISTANCE_DELTA,
@@ -172,7 +167,6 @@ public class Sensors {
                         new OnSuccessListener<List<DataSource>>() {
                             @Override
                             public void onSuccess(List<DataSource> dataSources) {
-                                List<DataType> existType = new ArrayList<DataType>();
                                 for (DataSource dataSource : dataSources) {
                                     Log.i(TAG, "Data Source Found: ");
                                     Log.i(TAG, "\tData Source: " + dataSource.toString());
@@ -232,7 +226,7 @@ public class Sensors {
                         long TimeNow = cal.getTimeInMillis();
                         DateFormat dateFormat = getDateTimeInstance();
                         Log.i(TAG, "Listen Time: " + dateFormat.format(TimeNow));
-                        //txvResult.append("\nListen Time: " + dateFormat.format(TimeNow));
+                        txvResult.append("\n\n" + dateFormat.format(TimeNow));
 
                         for (Field field : dataPoint.getDataType().getFields()) {
                             Value val = dataPoint.getValue(field);
@@ -259,8 +253,9 @@ public class Sensors {
 //                            }
                             Log.i(TAG, "Detected DataPoint field: " + field.getName());
                             Log.i(TAG, "Detected DataPoint value: " + val);
-                            txvResult.append("\nDetected DataPoint field: " + field.getName());
-                            txvResult.append("\nDetected DataPoint value: " + val);
+                            //txvResult.append("\nDetected DataPoint field: " + field.getName());
+                            //txvResult.append("\nDetected DataPoint value: " + val);
+                            txvResult.append("\n" + field.getName() + ": " + val);
                         }
                     }
                 };
@@ -271,7 +266,6 @@ public class Sensors {
                                 .setDataSource(dataSource) // Optional but recommended for custom data sets.
                                 .setDataType(dataType) // Can't be omitted.
                                 .setSamplingRate(1, TimeUnit.SECONDS)
-                                .setMaxDeliveryLatency(1, TimeUnit.SECONDS)
                                 .build(),
                         mListener)
                 .addOnCompleteListener(
@@ -339,7 +333,7 @@ public class Sensors {
 //        logView.setBackgroundColor(Color.WHITE);
 //        msgFilter.setNext(logView);
         Log.i(TAG, "Ready.");
-        txvResult.append("\nReady.");
+        txvResult.append("Ready.");
     }
 
 
