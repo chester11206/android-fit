@@ -32,6 +32,7 @@ import android.widget.Toast;
 
 import com.google.android.gms.auth.api.signin.GoogleSignIn;
 import com.google.android.gms.fit.samples.common.logger.Log;
+import com.google.android.gms.fitness.Fitness;
 import com.google.android.gms.fitness.FitnessOptions;
 import com.google.android.gms.fitness.data.DataType;
 
@@ -70,10 +71,10 @@ public class MainActivity extends AppCompatActivity {
     public static int lastPosition = 0;
 
     boolean[] flags = new boolean[]{};//init multichoice = false
-    String[] items = null;
-    private static List<String> sensors_list = new ArrayList<String>();
-    public static final Map<String, DataType> datatype_map = createMap();
-    private static Map<String, DataType> createMap()
+    String[] sensorItems = null;
+    private List<String> sensors_list = new ArrayList<String>();
+    public static final Map<String, DataType> datatype_map = createDataTypeMap();
+    private static Map<String, DataType> createDataTypeMap()
     {
         Map<String, DataType> myMap = new HashMap<String, DataType>();
         myMap.put("Activity", DataType.TYPE_ACTIVITY_SAMPLES);
@@ -90,8 +91,24 @@ public class MainActivity extends AppCompatActivity {
         return myMap;
     }
 
+    public static final Map<String, Integer> activity_map = createActivityMap();
+    private static Map<String, Integer> createActivityMap()
+    {
+        Map<String, Integer> myMap = new HashMap<String, Integer>();
+        myMap.put("still", 0);
+        myMap.put("walking", 1);
+        myMap.put("running", 2);
+        myMap.put("biking", 3);
+        myMap.put("in vehicle", 4);
+        myMap.put("on foot", 5);
+        myMap.put("tilting", 6);
+        myMap.put("unknown", 7);
+        return myMap;
+    }
+
     private static final int msgKey1 = 1;
     private TextView mTime;
+    public static long timeNow = 0;
 
     public static final String TAG = "MyFit";
     TextView txvResult;
@@ -146,8 +163,9 @@ public class MainActivity extends AppCompatActivity {
         mTabLayout.setupWithViewPager(mViewPager);
 
         /** set multichoice dialog */
-        items = getResources().getStringArray(R.array.sensors);
-        flags = new boolean[items.length];
+
+        sensorItems = getResources().getStringArray(R.array.sensors);
+        flags = new boolean[sensorItems.length];
         Arrays.fill(flags, false);
 
 
@@ -206,6 +224,7 @@ public class MainActivity extends AppCompatActivity {
         Date now = new Date();
         cal.setTime(now);
         long TimeNow = cal.getTimeInMillis();
+        timeNow = TimeNow;
         DateFormat dateFormat = getDateTimeInstance();
         mTime.setText(dateFormat.format(TimeNow));
     }
@@ -251,31 +270,37 @@ public class MainActivity extends AppCompatActivity {
 
     /** Gets the {@link FitnessOptions} in order to check or request OAuth permission for the user. */
     private FitnessOptions getFitnessSignInOptions() {
-
-        return  FitnessOptions.builder()
-                .addDataType(DataType.TYPE_LOCATION_SAMPLE,FitnessOptions.ACCESS_WRITE)
-                .addDataType(DataType.TYPE_LOCATION_SAMPLE,FitnessOptions.ACCESS_READ)
-                .addDataType(DataType.TYPE_STEP_COUNT_DELTA,FitnessOptions.ACCESS_WRITE)
-                .addDataType(DataType.TYPE_STEP_COUNT_DELTA,FitnessOptions.ACCESS_READ)
-                .addDataType(DataType.TYPE_DISTANCE_DELTA,FitnessOptions.ACCESS_WRITE)
-                .addDataType(DataType.TYPE_DISTANCE_DELTA,FitnessOptions.ACCESS_READ)
-                .addDataType(DataType.TYPE_SPEED,FitnessOptions.ACCESS_WRITE)
-                .addDataType(DataType.TYPE_SPEED,FitnessOptions.ACCESS_READ)
-                .addDataType(DataType.TYPE_ACTIVITY_SAMPLES,FitnessOptions.ACCESS_WRITE)
-                .addDataType(DataType.TYPE_ACTIVITY_SAMPLES,FitnessOptions.ACCESS_READ)
-                .addDataType(DataType.TYPE_WEIGHT,FitnessOptions.ACCESS_WRITE)
-                .addDataType(DataType.TYPE_WEIGHT,FitnessOptions.ACCESS_READ)
-                .addDataType(DataType.TYPE_HEART_RATE_BPM,FitnessOptions.ACCESS_WRITE)
-                .addDataType(DataType.TYPE_HEART_RATE_BPM,FitnessOptions.ACCESS_READ)
-                .addDataType(DataType.TYPE_CYCLING_WHEEL_REVOLUTION,FitnessOptions.ACCESS_WRITE)
-                .addDataType(DataType.TYPE_CYCLING_WHEEL_REVOLUTION,FitnessOptions.ACCESS_READ)
-                .addDataType(DataType.TYPE_CYCLING_WHEEL_RPM,FitnessOptions.ACCESS_WRITE)
-                .addDataType(DataType.TYPE_CYCLING_WHEEL_RPM,FitnessOptions.ACCESS_READ)
-                .addDataType(DataType.TYPE_NUTRITION,FitnessOptions.ACCESS_WRITE)
-                .addDataType(DataType.TYPE_NUTRITION,FitnessOptions.ACCESS_READ)
-                .addDataType(DataType.TYPE_CALORIES_EXPENDED,FitnessOptions.ACCESS_WRITE)
-                .addDataType(DataType.TYPE_CALORIES_EXPENDED,FitnessOptions.ACCESS_READ)
-                .build();
+        FitnessOptions.Builder fit = FitnessOptions.builder();
+        for (String key : datatype_map.keySet()) {
+            fit.addDataType(datatype_map.get(key), FitnessOptions.ACCESS_WRITE);
+            fit.addDataType(datatype_map.get(key), FitnessOptions.ACCESS_READ);
+        }
+        return
+                fit.build();
+//                FitnessOptions.builder()
+//                .addDataType(DataType.TYPE_LOCATION_SAMPLE,FitnessOptions.ACCESS_WRITE)
+//                .addDataType(DataType.TYPE_LOCATION_SAMPLE,FitnessOptions.ACCESS_READ)
+//                .addDataType(DataType.TYPE_STEP_COUNT_DELTA,FitnessOptions.ACCESS_WRITE)
+//                .addDataType(DataType.TYPE_STEP_COUNT_DELTA,FitnessOptions.ACCESS_READ)
+//                .addDataType(DataType.TYPE_DISTANCE_DELTA,FitnessOptions.ACCESS_WRITE)
+//                .addDataType(DataType.TYPE_DISTANCE_DELTA,FitnessOptions.ACCESS_READ)
+//                .addDataType(DataType.TYPE_SPEED,FitnessOptions.ACCESS_WRITE)
+//                .addDataType(DataType.TYPE_SPEED,FitnessOptions.ACCESS_READ)
+//                .addDataType(DataType.TYPE_ACTIVITY_SAMPLES,FitnessOptions.ACCESS_WRITE)
+//                .addDataType(DataType.TYPE_ACTIVITY_SAMPLES,FitnessOptions.ACCESS_READ)
+//                .addDataType(DataType.TYPE_WEIGHT,FitnessOptions.ACCESS_WRITE)
+//                .addDataType(DataType.TYPE_WEIGHT,FitnessOptions.ACCESS_READ)
+//                .addDataType(DataType.TYPE_HEART_RATE_BPM,FitnessOptions.ACCESS_WRITE)
+//                .addDataType(DataType.TYPE_HEART_RATE_BPM,FitnessOptions.ACCESS_READ)
+//                .addDataType(DataType.TYPE_CYCLING_WHEEL_REVOLUTION,FitnessOptions.ACCESS_WRITE)
+//                .addDataType(DataType.TYPE_CYCLING_WHEEL_REVOLUTION,FitnessOptions.ACCESS_READ)
+//                .addDataType(DataType.TYPE_CYCLING_WHEEL_RPM,FitnessOptions.ACCESS_WRITE)
+//                .addDataType(DataType.TYPE_CYCLING_WHEEL_RPM,FitnessOptions.ACCESS_READ)
+//                .addDataType(DataType.TYPE_NUTRITION,FitnessOptions.ACCESS_WRITE)
+//                .addDataType(DataType.TYPE_NUTRITION,FitnessOptions.ACCESS_READ)
+//                .addDataType(DataType.TYPE_CALORIES_EXPENDED,FitnessOptions.ACCESS_WRITE)
+//                .addDataType(DataType.TYPE_CALORIES_EXPENDED,FitnessOptions.ACCESS_READ)
+//                .build();
     }
 
     /** Returns the current state of the permissions needed. */
@@ -435,23 +460,23 @@ public class MainActivity extends AppCompatActivity {
         return super.onOptionsItemSelected(item);
     }
 
-/** create dialog by id */
+/** create dialog */
     @Override
     protected Dialog onCreateDialog(int id) {
         Dialog dialog = null;
         final boolean[] tempFlags = flags.clone();
         switch (id) {
             case 1:
-                AlertDialog.Builder builder = new AlertDialog.Builder(this);
-                builder.setTitle("Choose Sensors");
-                builder.setMultiChoiceItems(items, flags, new DialogInterface.OnMultiChoiceClickListener() {
+                AlertDialog.Builder builderSensor = new AlertDialog.Builder(this);
+                builderSensor.setTitle("Choose Sensors");
+                builderSensor.setMultiChoiceItems(sensorItems, flags, new DialogInterface.OnMultiChoiceClickListener() {
 
                     @Override
                     public void onClick(DialogInterface dialog, int which, boolean isChecked) {
                         tempFlags[which] = isChecked;
                     }
                 });
-                builder.setPositiveButton("OK", new DialogInterface.OnClickListener() {
+                builderSensor.setPositiveButton("OK", new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
                         boolean hasChoose = false;
@@ -467,7 +492,7 @@ public class MainActivity extends AppCompatActivity {
                             for (int i = 0; i < flags.length; i++) {
                                 if(flags[i])
                                 {
-                                    result.add(items[i]);
+                                    result.add(sensorItems[i]);
                                 }
                             }
                             sensors_list = new ArrayList<String>(result);
@@ -480,13 +505,13 @@ public class MainActivity extends AppCompatActivity {
                         }
                     }
                 });
-                builder.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+                builderSensor.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
 
                     }
                 });
-                dialog = builder.create();
+                dialog = builderSensor.create();
                 break;
 
             default:

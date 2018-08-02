@@ -2,6 +2,8 @@ package com.example.chester11206.testapp;
 
 import android.Manifest;
 import android.app.Activity;
+import android.app.AlertDialog;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentSender;
 import android.content.pm.PackageManager;
@@ -9,6 +11,7 @@ import android.graphics.Color;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.Vibrator;
 import android.provider.Settings;
 import android.support.annotation.NonNull;
 import android.support.design.widget.Snackbar;
@@ -53,6 +56,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
+import java.lang.reflect.Array;
 import java.text.DateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -89,20 +93,34 @@ public class Sensors {
     private static ArrayList<DataType> sensors_list;
     private static DataType [] sensors_array;
 
-    private static int step_interval;
-    private static float distance_interval;
-    private static int user_id;
+    public static String real_activity;
+    String [] activityItems = null;
 
-    //private DatabaseReference mDatabase;
+    private int step_interval;
+    private float distance_interval;
+    private float longitude;
+    private float latitude;
+    private float accuracy;
+    private float altitude;
+    private long start_time ;
+
+    private boolean startListen = true;
+
+    private DatabaseReference mDatabase;
 
     public void start(Activity activity, List<String> sensors_list){
 
         // initiate
-        this.context = activity;
+        context = activity;
         this.sensors_list = new ArrayList<DataType>();
+        activityItems = context.getResources().getStringArray(R.array.activity);
+
         step_interval = 0;
         distance_interval = 0;
-        user_id = 1;
+        longitude = 0;
+        latitude = 0;
+        accuracy = 0;
+        altitude = 0;
 
         txvResult = (TextView) this.context.findViewById(R.id.txvResult1);
         txvResult.setMovementMethod(new ScrollingMovementMethod());
@@ -117,28 +135,48 @@ public class Sensors {
         this.sensors_array = new DataType[this.sensors_list.size()];
         this.sensors_array = this.sensors_list.toArray(this.sensors_array);
 
-        //mDatabase = FirebaseDatabase.getInstance().getReference("FitActivity");
+        mDatabase = FirebaseDatabase.getInstance().getReference();
 
         initializeLogging();
         findFitnessDataSources();
+        start_time = MainActivity.timeNow;
     }
 
     public class FitActivity {
 
-        public String activity_confidence;
-        public int Steps;
-        public float Distance;
-        public String Time;
+        public List<Float> activity_confidence = new ArrayList<Float>();
+        public int steps;
+        public float distance;
+        public float longitude;
+        public float latitude;
+        public float accuracy;
+        public float altitude;
+        public long time;
+        public String ground_truth;
 
         public FitActivity() {
             // Default constructor required for calls to DataSnapshot.getValue(User.class)
         }
 
-        public FitActivity(String activity_confidence, int steps, float distance, String time) {
-            this.activity_confidence = activity_confidence;
-            this.Steps = steps;
-            this.Distance = distance;
-            this.Time = time;
+        public FitActivity(Value activity_confidence, int steps, float distance, float longitude, float latitude, float accuracy, float altitude, long time, String ground_truth) {
+            Float [] temp_activity = new Float[8];
+            for (String key : MainActivity.activity_map.keySet()) {
+                if (activity_confidence.getKeyValue(key) == null) {
+                    activity_confidence.setKeyValue(key, 0);
+                }
+                temp_activity[MainActivity.activity_map.get(key)] = activity_confidence.getKeyValue(key);
+
+                //this.activity_confidence.set(MainActivity.activity_map.get(key), activity_confidence.getKeyValue(key));
+            }
+            this.activity_confidence = Arrays.asList(temp_activity);
+            this.steps = steps;
+            this.distance = distance;
+            this.longitude = longitude;
+            this.latitude = latitude;
+            this.accuracy = accuracy;
+            this.altitude = altitude;
+            this.time = time;
+            this.ground_truth = ground_truth;
         }
 
     }
@@ -220,42 +258,66 @@ public class Sensors {
                         Log.i(TAG, "Detecting...");
                         //txvResult.append("Detecting...");
 
-                        Calendar cal = Calendar.getInstance();
-                        Date now = new Date();
-                        cal.setTime(now);
-                        long TimeNow = cal.getTimeInMillis();
                         DateFormat dateFormat = getDateTimeInstance();
-                        Log.i(TAG, "Listen Time: " + dateFormat.format(TimeNow));
-                        txvResult.append("\n\n" + dateFormat.format(TimeNow));
+//                        Calendar cal = Calendar.getInstance();
+//                        Date now = new Date();
+//                        cal.setTime(now);
+//                        long TimeNow = cal.getTimeInMillis();
+//                        Log.i(TAG, "Listen Time: " + dateFormat.format(TimeNow));
+//                        txvResult.append("\n\n" + dateFormat.format(TimeNow));
+                        if (startListen) {
+                            for (Field field : dataPoint.getDataType().getFields()) {
+                                Value val = dataPoint.getValue(field);
+                                if (dataPoint.getDataType().equals(DataType.TYPE_STEP_COUNT_DELTA)) {
+                                    step_interval += val.asInt();
+                                }
+                                else if (dataPoint.getDataType().equals(DataType.TYPE_DISTANCE_DELTA)) {
+                                    distance_interval += val.asFloat();
+                                }
+                                else if (dataPoint.getDataType().equals(DataType.TYPE_LOCATION_SAMPLE)) {
+                                    if (field.equals(Field.FIELD_LONGITUDE)) {
+                                        longitude = val.asFloat();
+                                    }
+                                    else if (field.equals(Field.FIELD_LATITUDE)) {
+                                        latitude = val.asFloat();
+                                    }
+                                    else if (field.equals(Field.FIELD_ACCURACY)) {
+                                        accuracy = val.asFloat();
+                                    }
+                                    else if (field.equals(Field.FIELD_ALTITUDE)) {
+                                        altitude = val.asFloat();
+                                    }
+                                }
+                                else if (field.equals(Field.FIELD_ACTIVITY_CONFIDENCE)) {
+                                    long end_time = MainActivity.timeNow;
+                                    long time_interval = (end_time - start_time)/1000;
+                                    startListen = false;
 
-                        for (Field field : dataPoint.getDataType().getFields()) {
-                            Value val = dataPoint.getValue(field);
-//                            if (field.equals(Field.FIELD_STEPS)) {
-//                                step_interval += val.asInt();
-//                            }
-//                            else if (field.equals(Field.FIELD_DISTANCE)) {
-//                                distance_interval += val.asFloat();
-//                            }
-//                            else if (field.equals(Field.FIELD_ACTIVITY_CONFIDENCE)) {
-//                                txvResult.append("\nListen Time: " + dateFormat.format(TimeNow));
-//                                txvResult.append("\n" + field.getName() + ": " + val);
-//                                txvResult.append("\nStep: " + step_interval);
-//                                txvResult.append("\nDistance: " + distance_interval);
-//
-////                                FitActivity fitActivity = new FitActivity(val.toString(), step_interval, distance_interval, dateFormat.format(TimeNow));
-////                                FirebaseDatabase database = FirebaseDatabase.getInstance();
-////                                DatabaseReference mDatabase = database.getReference("FitActivity");
-////                                mDatabase.child(Integer.toString(user_id)).setValue(fitActivity);
-////                                user_id ++;
-//
-//                                step_interval = 0;
-//                                distance_interval = 0;
-//                            }
-                            Log.i(TAG, "Detected DataPoint field: " + field.getName());
-                            Log.i(TAG, "Detected DataPoint value: " + val);
-                            //txvResult.append("\nDetected DataPoint field: " + field.getName());
-                            //txvResult.append("\nDetected DataPoint value: " + val);
-                            txvResult.append("\n" + field.getName() + ": " + val);
+                                    txvResult.append("\nListen Time: " + dateFormat.format(start_time) + "to" + dateFormat.format(end_time));
+                                    txvResult.append("\nTime_Interval(sec): " + time_interval);
+                                    for (String key : MainActivity.activity_map.keySet()) {
+                                        txvResult.append("\n" + key + ": " + val.getKeyValue(key));
+                                    }
+                                    txvResult.append("\n" + field.getName() + ": " + val);
+                                    txvResult.append("\nStep: " + step_interval);
+                                    txvResult.append("\nDistance: " + distance_interval);
+                                    txvResult.append("\nLongitude: " + longitude);
+                                    txvResult.append("\nLatitude: " + latitude);
+                                    txvResult.append("\nAccuracy: " + accuracy);
+                                    txvResult.append("\nAltitude: " + altitude);
+
+
+
+                                    step_interval = 0;
+                                    distance_interval = 0;
+                                    showChooseDialog(val, time_interval);
+                                }
+                                Log.i(TAG, "Detected DataPoint field: " + field.getName());
+                                Log.i(TAG, "Detected DataPoint value: " + val);
+                                //txvResult.append("\nDetected DataPoint field: " + field.getName());
+                                //txvResult.append("\nDetected DataPoint value: " + val);
+                                //txvResult.append("\n" + field.getName() + ": " + val);
+                            }
                         }
                     }
                 };
@@ -282,6 +344,61 @@ public class Sensors {
                             }
                         });
         // [END register_data_listener]
+    }
+
+    private void showChooseDialog(final Value val, final long time_interval) {
+        final Vibrator vibrator = (Vibrator)context.getSystemService(context.VIBRATOR_SERVICE);
+        long[] patter = {1000, 1000};
+        vibrator.vibrate(patter, 0);
+
+        AlertDialog.Builder builderActivity = new AlertDialog.Builder(context);
+        builderActivity.setTitle("Real Activity");
+        builderActivity.setSingleChoiceItems(activityItems, -1, new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialogInterface, int i) {
+                real_activity = activityItems[i];
+            }
+        });
+        builderActivity.setPositiveButton("OK", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                vibrator.cancel();
+                txvResult.append("\nGround Truth: " + real_activity);
+                txvResult.append("\n-------------------\n");
+
+                FitActivity fitActivity = new FitActivity(val, step_interval, distance_interval, longitude, latitude, accuracy, altitude, time_interval, real_activity);
+                //FirebaseDatabase database = FirebaseDatabase.getInstance();
+                //DatabaseReference mDatabase = database.getReference();
+                mDatabase.child("fitActivity").push().setValue(fitActivity);
+                start_time = MainActivity.timeNow;
+                startListen = true;
+//                boolean hasChoose = false;
+//                for (boolean flag : tempFlags) {
+//                    if (flag) {
+//                        hasChoose = true;
+//                        break;
+//                    }
+//                }
+//                if (hasChoose){
+//                    List<String> result = new ArrayList<String>();
+//                    flags = tempFlags.clone();
+//                    for (int i = 0; i < flags.length; i++) {
+//                        if(flags[i])
+//                        {
+//                            result.add(sensorItems[i]);
+//                        }
+//                    }
+//                    sensors_list = new ArrayList<String>(result);
+//                }
+//                else {
+//                    txvResult = (TextView) findViewById(R.id.txvResult1);
+//                    txvResult.setMovementMethod(new ScrollingMovementMethod());
+//                    txvResult.setText("");
+//                    txvResult.setText("You haven't choose the sensors!");
+//                }
+            }
+        });
+        builderActivity.show();
     }
 
     /** Unregisters the listener with the Sensors API. */
