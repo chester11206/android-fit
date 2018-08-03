@@ -9,11 +9,13 @@ import android.content.IntentSender;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Vibrator;
 import android.provider.Settings;
 import android.support.annotation.NonNull;
+import android.support.annotation.RequiresApi;
 import android.support.design.widget.Snackbar;
 import android.support.v4.app.ActivityCompat;
 import android.text.method.ScrollingMovementMethod;
@@ -67,6 +69,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import okhttp3.Call;
 import okhttp3.FormBody;
@@ -103,45 +106,11 @@ public class Sensors {
     private float accuracy;
     private float altitude;
     private long start_time ;
+    private Map<DataType, Integer> to_predict = new HashMap<DataType, Integer>();
 
-    private boolean startListen = true;
+    private boolean startListen;
 
     private DatabaseReference mDatabase;
-
-    public void start(Activity activity, List<String> sensors_list){
-
-        // initiate
-        context = activity;
-        this.sensors_list = new ArrayList<DataType>();
-        activityItems = context.getResources().getStringArray(R.array.activity);
-
-        step_interval = 0;
-        distance_interval = 0;
-        longitude = 0;
-        latitude = 0;
-        accuracy = 0;
-        altitude = 0;
-
-        txvResult = (TextView) this.context.findViewById(R.id.txvResult1);
-        txvResult.setMovementMethod(new ScrollingMovementMethod());
-
-        List<String> existType = new ArrayList<String>();
-        for (String key : sensors_list) {
-            if(!existType.contains(key)) {
-                this.sensors_list.add(MainActivity.datatype_map.get(key));
-                existType.add(key);
-            }
-        }
-        this.sensors_array = new DataType[this.sensors_list.size()];
-        this.sensors_array = this.sensors_list.toArray(this.sensors_array);
-
-        mDatabase = FirebaseDatabase.getInstance().getReference();
-
-        initializeLogging();
-        findFitnessDataSources();
-        start_time = MainActivity.timeNow;
-    }
-
     public class FitActivity {
 
         public List<Float> activity_confidence = new ArrayList<Float>();
@@ -181,8 +150,56 @@ public class Sensors {
 
     }
 
+    public void start(Activity activity, List<String> sensors_list){
+
+        // initiate
+        context = activity;
+        this.sensors_list = new ArrayList<DataType>();
+        activityItems = context.getResources().getStringArray(R.array.activity);
+
+        step_interval = 0;
+        distance_interval = 0;
+        longitude = 0;
+        latitude = 0;
+        accuracy = 0;
+        altitude = 0;
+
+        txvResult = (TextView) this.context.findViewById(R.id.txvResult1);
+        txvResult.setMovementMethod(new ScrollingMovementMethod());
+
+        List<String> existType = new ArrayList<String>();
+        for (String key : sensors_list) {
+            if(!existType.contains(key)) {
+                this.sensors_list.add(MainActivity.datatype_map.get(key));
+                if (!MainActivity.datatype_map.get(key).equals(DataType.TYPE_ACTIVITY_SAMPLES)){
+                    to_predict.put(MainActivity.datatype_map.get(key), 0);
+                }
+                existType.add(key);
+            }
+        }
+        this.sensors_array = new DataType[this.sensors_list.size()];
+        this.sensors_array = this.sensors_list.toArray(this.sensors_array);
+//        to_predict = new int[this.sensors_list.size() - 1];
+//        Arrays.fill(to_predict, 1);
+
+        mDatabase = FirebaseDatabase.getInstance().getReference();
+
+        initializeLogging();
+        sensorStart();
+        //findFitnessDataSources();
+    }
+
+    private void sensorStart() {
+        for (DataType key : to_predict.keySet()) {
+            startListen = true;
+            start_time = MainActivity.timeNow;
+            findFitnessDataSources(key);
+            break;
+        }
+    }
+
     /** Finds available data sources and attempts to register on a specific {@link DataType}. */
-    private void findFitnessDataSources() {
+    private void findFitnessDataSources(DataType sensors_item) {
         // [START find_data_sources]
         // Note: Fitness.SensorsApi.findDataSources() requires the ACCESS_FINE_LOCATION permission.
 
@@ -190,7 +207,7 @@ public class Sensors {
             Fitness.getSensorsClient(context, GoogleSignIn.getLastSignedInAccount(context))
                 .findDataSources(
                         new DataSourcesRequest.Builder()
-                                .setDataTypes(sensors_array
+                                .setDataTypes(sensors_item
                                         //DataType.TYPE_CYCLING_WHEEL_REVOLUTION
 //                                        DataType.TYPE_LOCATION_SAMPLE,
 //                                        DataType.TYPE_STEP_COUNT_DELTA,
@@ -222,7 +239,7 @@ public class Sensors {
 //                                                    dataSource.getDataType().equals(DataType.TYPE_HEIGHT) ||
 //                                                    dataSource.getDataType().equals(DataType.TYPE_SPEED) ||
 //                                                    dataSource.getDataType().equals(DataType.TYPE_ACTIVITY_SAMPLES)
-                                             sensors_list.contains(dataSource.getDataType()) && !existType.contains(dataSource.getDataType())
+                                            sensors_item.equals(dataSource.getDataType()) && !existType.contains(dataSource.getDataType())
                                         //&& mListener == null
                                             ) {
 
@@ -253,9 +270,11 @@ public class Sensors {
         // [START register_data_listener]
         mListener =
                 new OnDataPointListener() {
+                    @RequiresApi(api = Build.VERSION_CODES.N)
                     @Override
                     public void onDataPoint(DataPoint dataPoint) {
                         Log.i(TAG, "Detecting...");
+                        //for (int predict : to_predict) txvResult.append(String.valueOf(predict));
                         //txvResult.append("Detecting...");
 
                         DateFormat dateFormat = getDateTimeInstance();
@@ -268,29 +287,9 @@ public class Sensors {
                         if (startListen) {
                             for (Field field : dataPoint.getDataType().getFields()) {
                                 Value val = dataPoint.getValue(field);
-                                if (dataPoint.getDataType().equals(DataType.TYPE_STEP_COUNT_DELTA)) {
-                                    step_interval += val.asInt();
-                                }
-                                else if (dataPoint.getDataType().equals(DataType.TYPE_DISTANCE_DELTA)) {
-                                    distance_interval += val.asFloat();
-                                }
-                                else if (dataPoint.getDataType().equals(DataType.TYPE_LOCATION_SAMPLE)) {
-                                    if (field.equals(Field.FIELD_LONGITUDE)) {
-                                        longitude = val.asFloat();
-                                    }
-                                    else if (field.equals(Field.FIELD_LATITUDE)) {
-                                        latitude = val.asFloat();
-                                    }
-                                    else if (field.equals(Field.FIELD_ACCURACY)) {
-                                        accuracy = val.asFloat();
-                                    }
-                                    else if (field.equals(Field.FIELD_ALTITUDE)) {
-                                        altitude = val.asFloat();
-                                    }
-                                }
-                                else if (field.equals(Field.FIELD_ACTIVITY_CONFIDENCE)) {
+                                if (dataType.equals(DataType.TYPE_ACTIVITY_SAMPLES)) {
                                     long end_time = MainActivity.timeNow;
-                                    long time_interval = (end_time - start_time)/1000;
+                                    long time_interval = (end_time - start_time) / 1000;
                                     startListen = false;
 
                                     txvResult.append("\nListen Time: " + dateFormat.format(start_time) + "to" + dateFormat.format(end_time));
@@ -306,18 +305,59 @@ public class Sensors {
                                     txvResult.append("\nAccuracy: " + accuracy);
                                     txvResult.append("\nAltitude: " + altitude);
 
-
-
                                     step_interval = 0;
                                     distance_interval = 0;
                                     showChooseDialog(val, time_interval);
+                                } else if (dataPoint.getDataType().equals(DataType.TYPE_STEP_COUNT_DELTA)) {
+                                    step_interval += val.asInt();
+                                } else if (dataPoint.getDataType().equals(DataType.TYPE_DISTANCE_DELTA)) {
+                                    distance_interval += val.asFloat();
+                                } else if (dataPoint.getDataType().equals(DataType.TYPE_LOCATION_SAMPLE)) {
+                                    if (field.equals(Field.FIELD_LONGITUDE)) {
+                                        longitude = val.asFloat();
+                                    } else if (field.equals(Field.FIELD_LATITUDE)) {
+                                        latitude = val.asFloat();
+                                    } else if (field.equals(Field.FIELD_ACCURACY)) {
+                                        accuracy = val.asFloat();
+                                    } else if (field.equals(Field.FIELD_ALTITUDE)) {
+                                        altitude = val.asFloat();
+                                    }
                                 }
-                                Log.i(TAG, "Detected DataPoint field: " + field.getName());
-                                Log.i(TAG, "Detected DataPoint value: " + val);
-                                //txvResult.append("\nDetected DataPoint field: " + field.getName());
-                                //txvResult.append("\nDetected DataPoint value: " + val);
-                                //txvResult.append("\n" + field.getName() + ": " + val);
                             }
+
+                            if (!dataPoint.getDataType().equals(DataType.TYPE_ACTIVITY_SAMPLES)){
+                                to_predict.put(dataPoint.getDataType(), to_predict.get(dataPoint.getDataType()) + 1);
+                            }
+                            for (DataType key : to_predict.keySet()) {
+                                for (String key2 : MainActivity.datatype_map.keySet()) {
+                                    if (MainActivity.datatype_map.get(key2).equals(key)) {
+                                        txvResult.append("\n" + key2 + ": " + to_predict.get(key));
+                                        break;
+                                    }
+                                }
+                            }
+
+                            unregisterFitnessDataListener();
+                            if (topredict(to_predict)) {
+                                for (DataType key : to_predict.keySet()) {
+                                    to_predict.put(key, 0);
+                                }
+                                findFitnessDataSources(DataType.TYPE_ACTIVITY_SAMPLES);
+                            }
+                            else if (!dataType.equals(DataType.TYPE_ACTIVITY_SAMPLES)){
+                                for (DataType key : to_predict.keySet()) {
+                                    if (to_predict.get(key) == 0) {
+                                        findFitnessDataSources(key);
+                                        break;
+                                    }
+                                }
+                            }
+
+                            //Log.i(TAG, "Detected DataPoint field: " + field.getName());
+                            //Log.i(TAG, "Detected DataPoint value: " + val);
+                            //txvResult.append("\nDetected DataPoint field: " + field.getName());
+                            //txvResult.append("\nDetected DataPoint value: " + val);
+                            //txvResult.append("\n" + field.getName() + ": " + val);
                         }
                     }
                 };
@@ -346,6 +386,17 @@ public class Sensors {
         // [END register_data_listener]
     }
 
+    private boolean topredict(Map<DataType, Integer> to_predict) {
+        boolean result = true;
+        for (DataType key : to_predict.keySet()) {
+            if (to_predict.get(key) == 0) {
+                result = false;
+                break;
+            }
+        }
+        return result;
+    }
+
     private void showChooseDialog(final Value val, final long time_interval) {
         final Vibrator vibrator = (Vibrator)context.getSystemService(context.VIBRATOR_SERVICE);
         long[] patter = {1000, 1000};
@@ -370,8 +421,9 @@ public class Sensors {
                 //FirebaseDatabase database = FirebaseDatabase.getInstance();
                 //DatabaseReference mDatabase = database.getReference();
                 mDatabase.child("fitActivity").push().setValue(fitActivity);
-                start_time = MainActivity.timeNow;
-                startListen = true;
+
+                //unregisterFitnessDataListener();
+                sensorStart();
 //                boolean hasChoose = false;
 //                for (boolean flag : tempFlags) {
 //                    if (flag) {
@@ -396,6 +448,22 @@ public class Sensors {
 //                    txvResult.setText("");
 //                    txvResult.setText("You haven't choose the sensors!");
 //                }
+            }
+        });
+
+        builderActivity.setNegativeButton("Stop", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialogInterface, int i) {
+                vibrator.cancel();
+                txvResult.append("\nGround Truth: " + real_activity);
+                txvResult.append("\n-------------------\n");
+
+                FitActivity fitActivity = new FitActivity(val, step_interval, distance_interval, longitude, latitude, accuracy, altitude, time_interval, real_activity);
+                //FirebaseDatabase database = FirebaseDatabase.getInstance();
+                //DatabaseReference mDatabase = database.getReference();
+                mDatabase.child("fitActivity").push().setValue(fitActivity);
+
+                unregisterFitnessDataListener();
             }
         });
         builderActivity.show();
