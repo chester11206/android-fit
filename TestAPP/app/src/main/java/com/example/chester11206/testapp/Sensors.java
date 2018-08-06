@@ -12,6 +12,8 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.Handler;
+import android.os.Message;
 import android.os.Vibrator;
 import android.provider.Settings;
 import android.support.annotation.NonNull;
@@ -91,6 +93,7 @@ public class Sensors {
     TextView txvResult;
 
     public Activity context;
+    private TimeThread overtime = new TimeThread();
 
     // the same, one for list and one for array
     private static ArrayList<DataType> sensors_list;
@@ -109,6 +112,7 @@ public class Sensors {
     private Map<DataType, Integer> to_predict = new HashMap<DataType, Integer>();
 
     private boolean startListen;
+    private static final int msgKey1 = 1;
 
     private DatabaseReference mDatabase;
     public class FitActivity {
@@ -150,6 +154,50 @@ public class Sensors {
 
     }
 
+    public class TimeThread extends Thread {
+        @Override
+        public void run () {
+            do {
+                try {
+                    Thread.sleep(20000);
+                    Message msg = new Message();
+                    msg.what = msgKey1;
+                    mHandler.sendMessage(msg);
+                }
+                catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            } while(true);
+        }
+    }
+    private Handler mHandler = new Handler() {
+        @Override
+        public void handleMessage (Message msg) {
+            super.handleMessage(msg);
+            switch (msg.what) {
+                case msgKey1:
+                    overTime();
+                    break;
+                default:
+                    break;
+            }
+        }
+    };
+    private void overTime(){
+        if(startListen && !topredict(to_predict)) {
+            unregisterFitnessDataListener();
+            step_interval = 0;
+            distance_interval = 0;
+            for (DataType key : to_predict.keySet()) {
+                to_predict.put(key, 0);
+            }
+
+            //overtime.interrupt();
+            sensorStart();
+            txvResult.append("OverTime!");
+        }
+    }
+
     public void start(Activity activity, List<String> sensors_list){
 
         // initiate
@@ -186,16 +234,19 @@ public class Sensors {
 
         initializeLogging();
         sensorStart();
+        overtime.start();
         //findFitnessDataSources();
     }
 
     private void sensorStart() {
+        startListen = true;
+        start_time = MainActivity.timeNow;
+
         for (DataType key : to_predict.keySet()) {
-            startListen = true;
-            start_time = MainActivity.timeNow;
             findFitnessDataSources(key);
-            break;
+            //break;
         }
+        findFitnessDataSources(DataType.TYPE_ACTIVITY_SAMPLES);
     }
 
     /** Finds available data sources and attempts to register on a specific {@link DataType}. */
@@ -285,49 +336,71 @@ public class Sensors {
 //                        Log.i(TAG, "Listen Time: " + dateFormat.format(TimeNow));
 //                        txvResult.append("\n\n" + dateFormat.format(TimeNow));
                         if (startListen) {
+                            //unregisterFitnessDataListener();
                             for (Field field : dataPoint.getDataType().getFields()) {
                                 Value val = dataPoint.getValue(field);
                                 if (dataType.equals(DataType.TYPE_ACTIVITY_SAMPLES)) {
-                                    long end_time = MainActivity.timeNow;
-                                    long time_interval = (end_time - start_time) / 1000;
-                                    startListen = false;
+                                    if (topredict(to_predict)){
+                                        for (DataType key : to_predict.keySet()) {
+                                            to_predict.put(key, 0);
+                                        }
+                                        long end_time = MainActivity.timeNow;
+                                        long time_interval = (end_time - start_time) / 1000;
+                                        startListen = false;
 
-                                    txvResult.append("\nListen Time: " + dateFormat.format(start_time) + "to" + dateFormat.format(end_time));
-                                    txvResult.append("\nTime_Interval(sec): " + time_interval);
-                                    for (String key : MainActivity.activity_map.keySet()) {
-                                        txvResult.append("\n" + key + ": " + val.getKeyValue(key));
-                                    }
-                                    txvResult.append("\n" + field.getName() + ": " + val);
-                                    txvResult.append("\nStep: " + step_interval);
-                                    txvResult.append("\nDistance: " + distance_interval);
-                                    txvResult.append("\nLongitude: " + longitude);
-                                    txvResult.append("\nLatitude: " + latitude);
-                                    txvResult.append("\nAccuracy: " + accuracy);
-                                    txvResult.append("\nAltitude: " + altitude);
+                                        txvResult.append("\nListen Time: " + dateFormat.format(start_time) + "to" + dateFormat.format(end_time));
+                                        txvResult.append("\nTime_Interval(sec): " + time_interval);
+                                        for (String key : MainActivity.activity_map.keySet()) {
+                                            txvResult.append("\n" + key + ": " + val.getKeyValue(key));
+                                        }
+                                        txvResult.append("\n" + field.getName() + ": " + val);
+                                        txvResult.append("\nStep: " + step_interval);
+                                        txvResult.append("\nDistance: " + distance_interval);
+                                        txvResult.append("\nLongitude: " + longitude);
+                                        txvResult.append("\nLatitude: " + latitude);
+                                        txvResult.append("\nAccuracy: " + accuracy);
+                                        txvResult.append("\nAltitude: " + altitude);
 
-                                    step_interval = 0;
-                                    distance_interval = 0;
-                                    showChooseDialog(val, time_interval);
-                                } else if (dataPoint.getDataType().equals(DataType.TYPE_STEP_COUNT_DELTA)) {
-                                    step_interval += val.asInt();
-                                } else if (dataPoint.getDataType().equals(DataType.TYPE_DISTANCE_DELTA)) {
-                                    distance_interval += val.asFloat();
-                                } else if (dataPoint.getDataType().equals(DataType.TYPE_LOCATION_SAMPLE)) {
-                                    if (field.equals(Field.FIELD_LONGITUDE)) {
-                                        longitude = val.asFloat();
-                                    } else if (field.equals(Field.FIELD_LATITUDE)) {
-                                        latitude = val.asFloat();
-                                    } else if (field.equals(Field.FIELD_ACCURACY)) {
-                                        accuracy = val.asFloat();
-                                    } else if (field.equals(Field.FIELD_ALTITUDE)) {
-                                        altitude = val.asFloat();
+                                        step_interval = 0;
+                                        distance_interval = 0;
+                                        showChooseDialog(val, time_interval);
                                     }
+                                }
+                                else {
+                                    if (dataPoint.getDataType().equals(DataType.TYPE_STEP_COUNT_DELTA)) {
+                                        step_interval += val.asInt();
+                                    } else if (dataPoint.getDataType().equals(DataType.TYPE_DISTANCE_DELTA)) {
+                                        distance_interval += val.asFloat();
+                                    } else if (dataPoint.getDataType().equals(DataType.TYPE_LOCATION_SAMPLE)) {
+                                        if (field.equals(Field.FIELD_LONGITUDE)) {
+                                            longitude = val.asFloat();
+                                        } else if (field.equals(Field.FIELD_LATITUDE)) {
+                                            latitude = val.asFloat();
+                                        } else if (field.equals(Field.FIELD_ACCURACY)) {
+                                            accuracy = val.asFloat();
+                                        } else if (field.equals(Field.FIELD_ALTITUDE)) {
+                                            altitude = val.asFloat();
+                                        }
+                                    }
+                                    to_predict.put(dataPoint.getDataType(), to_predict.get(dataPoint.getDataType()) + 1);
+
+//                                    if (topredict(to_predict)) {
+//                                        for (DataType key : to_predict.keySet()) {
+//                                            to_predict.put(key, 0);
+//                                        }
+//                                        findFitnessDataSources(DataType.TYPE_ACTIVITY_SAMPLES);
+//                                    }
+//                                    else if (!dataType.equals(DataType.TYPE_ACTIVITY_SAMPLES)){
+//                                        for (DataType key : to_predict.keySet()) {
+//                                            if (to_predict.get(key) == 0) {
+//                                                findFitnessDataSources(key);
+//                                                break;
+//                                            }
+//                                        }
+//                                    }
                                 }
                             }
 
-                            if (!dataPoint.getDataType().equals(DataType.TYPE_ACTIVITY_SAMPLES)){
-                                to_predict.put(dataPoint.getDataType(), to_predict.get(dataPoint.getDataType()) + 1);
-                            }
                             for (DataType key : to_predict.keySet()) {
                                 for (String key2 : MainActivity.datatype_map.keySet()) {
                                     if (MainActivity.datatype_map.get(key2).equals(key)) {
@@ -337,21 +410,6 @@ public class Sensors {
                                 }
                             }
 
-                            unregisterFitnessDataListener();
-                            if (topredict(to_predict)) {
-                                for (DataType key : to_predict.keySet()) {
-                                    to_predict.put(key, 0);
-                                }
-                                findFitnessDataSources(DataType.TYPE_ACTIVITY_SAMPLES);
-                            }
-                            else if (!dataType.equals(DataType.TYPE_ACTIVITY_SAMPLES)){
-                                for (DataType key : to_predict.keySet()) {
-                                    if (to_predict.get(key) == 0) {
-                                        findFitnessDataSources(key);
-                                        break;
-                                    }
-                                }
-                            }
 
                             //Log.i(TAG, "Detected DataPoint field: " + field.getName());
                             //Log.i(TAG, "Detected DataPoint value: " + val);
@@ -367,7 +425,9 @@ public class Sensors {
                         new SensorRequest.Builder()
                                 .setDataSource(dataSource) // Optional but recommended for custom data sets.
                                 .setDataType(dataType) // Can't be omitted.
-                                .setSamplingRate(1, TimeUnit.SECONDS)
+                                .setSamplingRate(10, TimeUnit.SECONDS)
+                                .setFastestRate(10, TimeUnit.SECONDS)
+                                .setMaxDeliveryLatency(10, TimeUnit.SECONDS)
                                 .build(),
                         mListener)
                 .addOnCompleteListener(
@@ -422,8 +482,10 @@ public class Sensors {
                 //DatabaseReference mDatabase = database.getReference();
                 mDatabase.child("fitActivity").push().setValue(fitActivity);
 
+                startListen = true;
+                start_time = MainActivity.timeNow;
                 //unregisterFitnessDataListener();
-                sensorStart();
+                //sensorStart();
 //                boolean hasChoose = false;
 //                for (boolean flag : tempFlags) {
 //                    if (flag) {
