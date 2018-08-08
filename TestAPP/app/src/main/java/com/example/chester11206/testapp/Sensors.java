@@ -108,7 +108,8 @@ public class Sensors {
     private float latitude;
     private float accuracy;
     private float altitude;
-    private long start_time ;
+    private long start_time;
+    private long start_time2;
     private Map<DataType, Integer> to_predict = new HashMap<DataType, Integer>();
 
     private boolean startListen;
@@ -234,19 +235,20 @@ public class Sensors {
 
         initializeLogging();
         sensorStart();
-        overtime.start();
+        //overtime.start();
         //findFitnessDataSources();
     }
 
     private void sensorStart() {
         startListen = true;
         start_time = MainActivity.timeNow;
+        start_time2 = MainActivity.timeNow;
 
-        for (DataType key : to_predict.keySet()) {
-            findFitnessDataSources(key);
+        for (DataType sensor : sensors_array) {
+            findFitnessDataSources(sensor);
             //break;
         }
-        findFitnessDataSources(DataType.TYPE_ACTIVITY_SAMPLES);
+        //findFitnessDataSources(DataType.TYPE_ACTIVITY_SAMPLES);
     }
 
     /** Finds available data sources and attempts to register on a specific {@link DataType}. */
@@ -346,24 +348,26 @@ public class Sensors {
                                         }
                                         long end_time = MainActivity.timeNow;
                                         long time_interval = (end_time - start_time) / 1000;
-                                        startListen = false;
+                                        start_time = MainActivity.timeNow;
+                                        //startListen = false;
 
-                                        txvResult.append("\nListen Time: " + dateFormat.format(start_time) + "to" + dateFormat.format(end_time));
-                                        txvResult.append("\nTime_Interval(sec): " + time_interval);
-                                        for (String key : MainActivity.activity_map.keySet()) {
-                                            txvResult.append("\n" + key + ": " + val.getKeyValue(key));
-                                        }
-                                        txvResult.append("\n" + field.getName() + ": " + val);
-                                        txvResult.append("\nStep: " + step_interval);
-                                        txvResult.append("\nDistance: " + distance_interval);
-                                        txvResult.append("\nLongitude: " + longitude);
-                                        txvResult.append("\nLatitude: " + latitude);
-                                        txvResult.append("\nAccuracy: " + accuracy);
-                                        txvResult.append("\nAltitude: " + altitude);
+//                                        txvResult.append("\nListen Time: " + dateFormat.format(start_time) + "to" + dateFormat.format(end_time));
+//                                        txvResult.append("\nTime_Interval(sec): " + time_interval);
+//                                        for (String key : MainActivity.activity_map.keySet()) {
+//                                            txvResult.append("\n" + key + ": " + val.getKeyValue(key));
+//                                        }
+//                                        txvResult.append("\n" + field.getName() + ": " + val);
+//                                        txvResult.append("\nStep: " + step_interval);
+//                                        txvResult.append("\nDistance: " + distance_interval);
+//                                        txvResult.append("\nLongitude: " + longitude);
+//                                        txvResult.append("\nLatitude: " + latitude);
+//                                        txvResult.append("\nAccuracy: " + accuracy);
+//                                        txvResult.append("\nAltitude: " + altitude);
+                                        txvResult.append("\n" + time_interval + " " + val + "\n" + step_interval + " " + distance_interval);
 
                                         step_interval = 0;
                                         distance_interval = 0;
-                                        showChooseDialog(val, time_interval);
+                                        //showChooseDialog(val, time_interval);
                                     }
                                 }
                                 else {
@@ -382,6 +386,12 @@ public class Sensors {
                                             altitude = val.asFloat();
                                         }
                                     }
+                                    long end_time = MainActivity.timeNow;
+                                    long time_interval = (end_time - start_time2) / 1000;
+                                    start_time2 = MainActivity.timeNow;
+                                    txvResult.append("\n" + time_interval + " " + val);
+                                    //txvResult.append("\nDataType: " + dataPoint.getDataType());
+
                                     to_predict.put(dataPoint.getDataType(), to_predict.get(dataPoint.getDataType()) + 1);
 
 //                                    if (topredict(to_predict)) {
@@ -401,14 +411,14 @@ public class Sensors {
                                 }
                             }
 
-                            for (DataType key : to_predict.keySet()) {
-                                for (String key2 : MainActivity.datatype_map.keySet()) {
-                                    if (MainActivity.datatype_map.get(key2).equals(key)) {
-                                        txvResult.append("\n" + key2 + ": " + to_predict.get(key));
-                                        break;
-                                    }
-                                }
-                            }
+//                            for (DataType key : to_predict.keySet()) {
+//                                for (String key2 : MainActivity.datatype_map.keySet()) {
+//                                    if (MainActivity.datatype_map.get(key2).equals(key)) {
+//                                        txvResult.append("\n" + key2 + ": " + to_predict.get(key));
+//                                        break;
+//                                    }
+//                                }
+//                            }
 
 
                             //Log.i(TAG, "Detected DataPoint field: " + field.getName());
@@ -425,9 +435,9 @@ public class Sensors {
                         new SensorRequest.Builder()
                                 .setDataSource(dataSource) // Optional but recommended for custom data sets.
                                 .setDataType(dataType) // Can't be omitted.
-                                .setSamplingRate(10, TimeUnit.SECONDS)
-                                .setFastestRate(10, TimeUnit.SECONDS)
-                                .setMaxDeliveryLatency(10, TimeUnit.SECONDS)
+                                .setSamplingRate(1, TimeUnit.SECONDS)
+                                //.setFastestRate(10, TimeUnit.SECONDS)
+                                //.setMaxDeliveryLatency(10, TimeUnit.SECONDS)
                                 .build(),
                         mListener)
                 .addOnCompleteListener(
