@@ -121,18 +121,18 @@ public class Sensors {
         public List<Float> activity_confidence = new ArrayList<Float>();
         public int steps;
         public float distance;
-        public float longitude;
-        public float latitude;
-        public float accuracy;
-        public float altitude;
+//        public float longitude;
+//        public float latitude;
+//        public float accuracy;
+//        public float altitude;
         public long time;
-        public String ground_truth;
+        public int ground_truth;
 
         public FitActivity() {
             // Default constructor required for calls to DataSnapshot.getValue(User.class)
         }
 
-        public FitActivity(Value activity_confidence, int steps, float distance, float longitude, float latitude, float accuracy, float altitude, long time, String ground_truth) {
+        public FitActivity(Value activity_confidence, int steps, float distance, long time, String ground_truth) {
             Float [] temp_activity = new Float[8];
             for (String key : MainActivity.activity_map.keySet()) {
                 if (activity_confidence.getKeyValue(key) == null) {
@@ -143,14 +143,15 @@ public class Sensors {
                 //this.activity_confidence.set(MainActivity.activity_map.get(key), activity_confidence.getKeyValue(key));
             }
             this.activity_confidence = Arrays.asList(temp_activity);
+
             this.steps = steps;
             this.distance = distance;
-            this.longitude = longitude;
-            this.latitude = latitude;
-            this.accuracy = accuracy;
-            this.altitude = altitude;
+//            this.longitude = longitude;
+//            this.latitude = latitude;
+//            this.accuracy = accuracy;
+//            this.altitude = altitude;
             this.time = time;
-            this.ground_truth = ground_truth;
+            this.ground_truth = MainActivity.activity_map.get(ground_truth);
         }
 
     }
@@ -342,14 +343,14 @@ public class Sensors {
                             for (Field field : dataPoint.getDataType().getFields()) {
                                 Value val = dataPoint.getValue(field);
                                 if (dataType.equals(DataType.TYPE_ACTIVITY_SAMPLES)) {
-                                    if (topredict(to_predict)){
+                                    if (true){
                                         for (DataType key : to_predict.keySet()) {
                                             to_predict.put(key, 0);
                                         }
                                         long end_time = MainActivity.timeNow;
                                         long time_interval = (end_time - start_time) / 1000;
                                         start_time = MainActivity.timeNow;
-                                        //startListen = false;
+                                        startListen = false;
 
 //                                        txvResult.append("\nListen Time: " + dateFormat.format(start_time) + "to" + dateFormat.format(end_time));
 //                                        txvResult.append("\nTime_Interval(sec): " + time_interval);
@@ -363,11 +364,9 @@ public class Sensors {
 //                                        txvResult.append("\nLatitude: " + latitude);
 //                                        txvResult.append("\nAccuracy: " + accuracy);
 //                                        txvResult.append("\nAltitude: " + altitude);
-                                        txvResult.append("\n" + time_interval + " " + val + "\n" + step_interval + " " + distance_interval);
+                                        txvResult.append("\n" + time_interval + " " + val + " " + step_interval + " " + distance_interval);
 
-                                        step_interval = 0;
-                                        distance_interval = 0;
-                                        //showChooseDialog(val, time_interval);
+                                        showChooseDialog(val, time_interval);
                                     }
                                 }
                                 else {
@@ -386,13 +385,40 @@ public class Sensors {
                                             altitude = val.asFloat();
                                         }
                                     }
-                                    long end_time = MainActivity.timeNow;
-                                    long time_interval = (end_time - start_time2) / 1000;
-                                    start_time2 = MainActivity.timeNow;
-                                    txvResult.append("\n" + time_interval + " " + val);
+//                                    long end_time = MainActivity.timeNow;
+//                                    long time_interval = (end_time - start_time2) / 1000;
+//                                    start_time2 = MainActivity.timeNow;
+//                                    txvResult.append("\n" + time_interval + " " + val);
                                     //txvResult.append("\nDataType: " + dataPoint.getDataType());
 
                                     to_predict.put(dataPoint.getDataType(), to_predict.get(dataPoint.getDataType()) + 1);
+//                                    if (topredict(to_predict)){
+//                                        for (DataType key : to_predict.keySet()) {
+//                                            to_predict.put(key, 0);
+//                                        }
+//                                        long end_time = MainActivity.timeNow;
+//                                        long time_interval = (end_time - start_time) / 1000;
+//                                        start_time = MainActivity.timeNow;
+//                                        startListen = false;
+//
+////                                        txvResult.append("\nListen Time: " + dateFormat.format(start_time) + "to" + dateFormat.format(end_time));
+////                                        txvResult.append("\nTime_Interval(sec): " + time_interval);
+////                                        for (String key : MainActivity.activity_map.keySet()) {
+////                                            txvResult.append("\n" + key + ": " + val.getKeyValue(key));
+////                                        }
+////                                        txvResult.append("\n" + field.getName() + ": " + val);
+////                                        txvResult.append("\nStep: " + step_interval);
+////                                        txvResult.append("\nDistance: " + distance_interval);
+////                                        txvResult.append("\nLongitude: " + longitude);
+////                                        txvResult.append("\nLatitude: " + latitude);
+////                                        txvResult.append("\nAccuracy: " + accuracy);
+////                                        txvResult.append("\nAltitude: " + altitude);
+//                                        txvResult.append("\n" + time_interval + " " + step_interval + " " + distance_interval);
+//
+//                                        step_interval = 0;
+//                                        distance_interval = 0;
+//                                        showChooseDialog(val, time_interval);
+//                                    }
 
 //                                    if (topredict(to_predict)) {
 //                                        for (DataType key : to_predict.keySet()) {
@@ -435,7 +461,7 @@ public class Sensors {
                         new SensorRequest.Builder()
                                 .setDataSource(dataSource) // Optional but recommended for custom data sets.
                                 .setDataType(dataType) // Can't be omitted.
-                                .setSamplingRate(1, TimeUnit.SECONDS)
+                                .setSamplingRate(5, TimeUnit.SECONDS)
                                 //.setFastestRate(10, TimeUnit.SECONDS)
                                 //.setMaxDeliveryLatency(10, TimeUnit.SECONDS)
                                 .build(),
@@ -487,10 +513,24 @@ public class Sensors {
                 txvResult.append("\nGround Truth: " + real_activity);
                 txvResult.append("\n-------------------\n");
 
-                FitActivity fitActivity = new FitActivity(val, step_interval, distance_interval, longitude, latitude, accuracy, altitude, time_interval, real_activity);
+                for (DataType dataType : sensors_list) {
+                    if (dataType.equals(DataType.TYPE_STEP_COUNT_DELTA)) {
+                        FitActivity fitActivity = new FitActivity(val, step_interval, -1, time_interval, real_activity);
+                        mDatabase.child("fitActivity").push().setValue(fitActivity);
+                        break;
+                    }
+                    else if (dataType.equals(DataType.TYPE_DISTANCE_DELTA)) {
+                        FitActivity fitActivity = new FitActivity(val, -1, distance_interval, time_interval, real_activity);
+                        mDatabase.child("fitActivity").push().setValue(fitActivity);
+                        break;
+                    }
+                }
+
+                step_interval = 0;
+                distance_interval = 0;
+                //FitActivity fitActivity = new FitActivity(val, step_interval, time_interval, real_activity);
                 //FirebaseDatabase database = FirebaseDatabase.getInstance();
                 //DatabaseReference mDatabase = database.getReference();
-                mDatabase.child("fitActivity").push().setValue(fitActivity);
 
                 startListen = true;
                 start_time = MainActivity.timeNow;
@@ -530,10 +570,13 @@ public class Sensors {
                 txvResult.append("\nGround Truth: " + real_activity);
                 txvResult.append("\n-------------------\n");
 
-                FitActivity fitActivity = new FitActivity(val, step_interval, distance_interval, longitude, latitude, accuracy, altitude, time_interval, real_activity);
+                step_interval = 0;
+                distance_interval = 0;
+
+                //FitActivity fitActivity = new FitActivity(val, step_interval, distance_interval, longitude, latitude, accuracy, altitude, time_interval, real_activity);
                 //FirebaseDatabase database = FirebaseDatabase.getInstance();
                 //DatabaseReference mDatabase = database.getReference();
-                mDatabase.child("fitActivity").push().setValue(fitActivity);
+                //mDatabase.child("fitActivity").push().setValue(fitActivity);
 
                 unregisterFitnessDataListener();
             }
