@@ -31,6 +31,7 @@
     <string-array name="sensors">
         <item>Activity</item>
         <item>Step</item>
+        <item>Accelerometer</item>
         <item>Distance</item>
         <item>Location</item>
         <!--<item>Speed</item>-->
