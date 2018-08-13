@@ -17,8 +17,8 @@
     <string name="title_activity_history_api">HistoryAPI</string>
     <string name="action_update_session">Update step count data</string>
     <string name="action_delete_session">Delete step count data</string>
-    <string name="title_activity_recording_api">RecordingAPI</string>
 
+    <string name="title_activity_recording_api">RecordingAPI</string>
     <string name="action_dump_subs">List Active Subscriptions</string>
     <string name="action_cancel_subs">Cancel subscriptions</string>
 

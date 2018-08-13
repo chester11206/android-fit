@@ -379,10 +379,12 @@ public class MainActivity extends AppCompatActivity {
         histroyView = inflater.inflate(R.layout.history_view, null);
         recordingView = inflater.inflate(R.layout.recording_view, null);
         multiSensorsView = inflater.inflate(R.layout.multisensors_view, null);
-        adapter.add(sensorsView, "Sensors");
+        adapter.add(multiSensorsView, "MultiSensors");
+
         adapter.add(histroyView, "History");
         adapter.add(recordingView, "Recording");
-        adapter.add(multiSensorsView, "MultiSensors");
+        adapter.add(sensorsView, "Sensors");
+
 
         viewPager.setAdapter(adapter);
     }
@@ -400,7 +402,7 @@ public class MainActivity extends AppCompatActivity {
         public Object instantiateItem(ViewGroup container, int position) {
             container.addView(mListViews.get(position), 0);
             switch (position) {
-                case 0:
+                case 4:
                     Button sensorsbtn = (Button) findViewById(R.id.sensorsbtn);
                     sensorsbtn.setOnClickListener(new View.OnClickListener() {
                         public void onClick(View view) {
@@ -435,11 +437,11 @@ public class MainActivity extends AppCompatActivity {
 
                     });
                     break;
-                case 4:
+                case 0:
                     Button multisensorsbtn = (Button) findViewById(R.id.multisensorsbtn);
                     multisensorsbtn.setOnClickListener(new View.OnClickListener() {
                         public void onClick(View view) {
-                            txvResult = (TextView) findViewById(R.id.acceView);
+                            txvResult = (TextView) findViewById(R.id.multisensorsView);
                             txvResult.setMovementMethod(new ScrollingMovementMethod());
                             if (sensors_list.size() > 0){
                                 txvResult.setText(sensors_list.toString());
@@ -488,7 +490,7 @@ public class MainActivity extends AppCompatActivity {
         // Inflate the menu; this adds items to the action bar if it is present.
         switch (mViewPager.getCurrentItem()) {
             case 0:
-                getMenuInflater().inflate(R.menu.sensors_menu, menu);
+                getMenuInflater().inflate(R.menu.multisensors_menu, menu);
                 break;
             case 1:
                 getMenuInflater().inflate(R.menu.history_menu, menu);
@@ -497,7 +499,7 @@ public class MainActivity extends AppCompatActivity {
                 getMenuInflater().inflate(R.menu.recording_menu, menu);
                 break;
             case 3:
-                getMenuInflater().inflate(R.menu.multisensors_menu, menu);
+                getMenuInflater().inflate(R.menu.sensors_menu, menu);
                 break;
         }
         return true;
