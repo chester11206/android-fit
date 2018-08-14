@@ -375,15 +375,15 @@ public class MainActivity extends AppCompatActivity {
 
         MyViewPagerAdapter adapter = new MyViewPagerAdapter();
         LayoutInflater inflater=getLayoutInflater();
+        multiSensorsView = inflater.inflate(R.layout.multisensors_view, null);
         sensorsView = inflater.inflate(R.layout.sensors_view, null);
         histroyView = inflater.inflate(R.layout.history_view, null);
         recordingView = inflater.inflate(R.layout.recording_view, null);
-        multiSensorsView = inflater.inflate(R.layout.multisensors_view, null);
-        adapter.add(multiSensorsView, "MultiSensors");
 
+        adapter.add(multiSensorsView, "MultiSensors");
+        adapter.add(sensorsView, "Sensors");
         adapter.add(histroyView, "History");
         adapter.add(recordingView, "Recording");
-        adapter.add(sensorsView, "Sensors");
 
 
         viewPager.setAdapter(adapter);
@@ -402,7 +402,26 @@ public class MainActivity extends AppCompatActivity {
         public Object instantiateItem(ViewGroup container, int position) {
             container.addView(mListViews.get(position), 0);
             switch (position) {
-                case 4:
+                case 0:
+                    Button multisensorsbtn = (Button) findViewById(R.id.multisensorsbtn);
+                    multisensorsbtn.setOnClickListener(new View.OnClickListener() {
+                        public void onClick(View view) {
+                            txvResult = (TextView) findViewById(R.id.multisensorstxView);
+                            txvResult.setMovementMethod(new ScrollingMovementMethod());
+                            if (sensors_list.size() > 0){
+                                txvResult.setText(sensors_list.toString());
+                                mSensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
+                                multiSensorsapi.start(context, mSensorManager, sensors_list);
+                            }
+                            else {
+                                txvResult.setText("You haven't choose the sensors!");
+                            }
+
+
+                        }
+                    });
+                    break;
+                case 2:
                     Button sensorsbtn = (Button) findViewById(R.id.sensorsbtn);
                     sensorsbtn.setOnClickListener(new View.OnClickListener() {
                         public void onClick(View view) {
@@ -419,7 +438,7 @@ public class MainActivity extends AppCompatActivity {
                         }
                     });
                     break;
-                case 2:
+                case 3:
                     Button historybtn = (Button) findViewById(R.id.historybtn);
                     historybtn.setOnClickListener(new View.OnClickListener(){
                         public void onClick(View view){
@@ -428,32 +447,13 @@ public class MainActivity extends AppCompatActivity {
 
                     });
                     break;
-                case 3:
+                case 4:
                     Button recordingbtn = (Button) findViewById(R.id.recordingbtn);
                     recordingbtn.setOnClickListener(new View.OnClickListener(){
                         public void onClick(View view){
                             recordingapi.start(context);
                         }
 
-                    });
-                    break;
-                case 0:
-                    Button multisensorsbtn = (Button) findViewById(R.id.multisensorsbtn);
-                    multisensorsbtn.setOnClickListener(new View.OnClickListener() {
-                        public void onClick(View view) {
-                            txvResult = (TextView) findViewById(R.id.multisensorsView);
-                            txvResult.setMovementMethod(new ScrollingMovementMethod());
-                            if (sensors_list.size() > 0){
-                                txvResult.setText(sensors_list.toString());
-                                mSensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
-                                multiSensorsapi.start(context, mSensorManager, sensors_list);
-                            }
-                            else {
-                                txvResult.setText("You haven't choose the sensors!");
-                            }
-
-
-                        }
                     });
                     break;
             }
@@ -493,14 +493,15 @@ public class MainActivity extends AppCompatActivity {
                 getMenuInflater().inflate(R.menu.multisensors_menu, menu);
                 break;
             case 1:
-                getMenuInflater().inflate(R.menu.history_menu, menu);
-                break;
-            case 2:
-                getMenuInflater().inflate(R.menu.recording_menu, menu);
-                break;
-            case 3:
                 getMenuInflater().inflate(R.menu.sensors_menu, menu);
                 break;
+            case 2:
+                getMenuInflater().inflate(R.menu.history_menu, menu);
+                break;
+            case 3:
+                getMenuInflater().inflate(R.menu.recording_menu, menu);
+                break;
+
         }
         return true;
     }
