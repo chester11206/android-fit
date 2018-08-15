@@ -14,8 +14,15 @@ import android.support.annotation.NonNull;
 import android.support.annotation.RequiresApi;
 import android.text.method.ScrollingMovementMethod;
 import android.util.TypedValue;
+import android.view.View;
+import android.widget.Button;
+import android.widget.CheckBox;
+import android.widget.CompoundButton;
 import android.widget.LinearLayout;
+import android.widget.RadioButton;
+import android.widget.RadioGroup;
 import android.widget.RelativeLayout;
+import android.widget.TableRow;
 import android.widget.TextView;
 
 import com.google.android.gms.auth.api.signin.GoogleSignIn;
@@ -65,6 +72,13 @@ public class MultiSensors {
 
     private Map<DataType, Integer> to_predict = new HashMap<DataType, Integer>();
 
+    private CheckBox Still;
+    private CheckBox Walking;
+    private CheckBox Running;
+    private CheckBox Biking;
+    private CheckBox In_Vehicle;
+    private CheckBox Tilting;
+
     private Handler handler = new Handler( );
     private Runnable runnable = new Runnable( ) {
         public void run ( ) {
@@ -73,7 +87,7 @@ public class MultiSensors {
         }
     };
 
-    LinearLayout rl;
+    LinearLayout ll;
 
     public static final Map<Integer, TextView> textview_map = new HashMap<Integer, TextView>();
     public static final Map<String, Integer> sensorstype_map = createSensorsTypeMap();
@@ -82,6 +96,7 @@ public class MultiSensors {
         Map<String, Integer> myMap = new HashMap<String, Integer>();
         myMap.put("Step", Sensor.TYPE_STEP_COUNTER);
         myMap.put("Accelerometer", Sensor.TYPE_ACCELEROMETER);
+        myMap.put("Gyroscope", Sensor.TYPE_GYROSCOPE);
         return myMap;
     }
 
@@ -89,27 +104,38 @@ public class MultiSensors {
         context = activity;
         txvResult = (TextView) this.context.findViewById(R.id.multisensorstxView);
         txvResult.setMovementMethod(new ScrollingMovementMethod());
-        rl = (LinearLayout) context.findViewById(R.id.multisensors_view);
+        ll = (LinearLayout) context.findViewById(R.id.sensors_display);
         activityItems = context.getResources().getStringArray(R.array.activity);
+
+        RadioGroup rg = (RadioGroup)context.findViewById(R.id.radioGroup);
+        rg.setOnCheckedChangeListener(rglistener);
 
         this.mSensorManager = SensorManager;
         for (String sensor : sensors_list) {
 
             TextView txv = new TextView(context);
             //txv.setText(sensor);
-            LinearLayout.LayoutParams layoutParams=
-                    new LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+            TableRow.LayoutParams params = new TableRow.LayoutParams(0, TableRow.LayoutParams.WRAP_CONTENT, 1f);
 
             txv.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 17);
             txv.setMovementMethod(new ScrollingMovementMethod());
-            txv.setLayoutParams(layoutParams);
-            rl.addView(txv);
+            txv.setLayoutParams(params);
+            ll.addView(txv);
             textview_map.put(sensorstype_map.get(sensor), txv);
 
             mSensorManager.registerListener(mSensorEventListener,
                     mSensorManager.getDefaultSensor(sensorstype_map.get(sensor)),
                     SensorManager.SENSOR_DELAY_FASTEST);
         }
+
+        Button stopbtn = (Button) context.findViewById(R.id.stopbtn);
+        stopbtn.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View view) {
+                if(mSensorManager!=null){
+                    mSensorManager.unregisterListener(mSensorEventListener);
+                }
+            }
+        });
 
         sensorStart();
         //handler.postDelayed(runnable,1000);
@@ -121,8 +147,8 @@ public class MultiSensors {
         start_time = MainActivity.timeNow;
 
         to_predict.put(DataType.TYPE_DISTANCE_DELTA, 0);
-        findFitnessDataSources(DataType.TYPE_ACTIVITY_SAMPLES);
-        findFitnessDataSources(DataType.TYPE_DISTANCE_DELTA);
+        //findFitnessDataSources(DataType.TYPE_ACTIVITY_SAMPLES);
+        //findFitnessDataSources(DataType.TYPE_DISTANCE_DELTA);
     }
 
     private void getActivity(){
@@ -133,6 +159,17 @@ public class MultiSensors {
         //showChooseDialog();
 
     }
+
+    private RadioGroup.OnCheckedChangeListener rglistener = new RadioGroup.OnCheckedChangeListener(){
+
+        @Override
+        public void onCheckedChanged(RadioGroup rg,
+                                     int checkedId) {
+            RadioButton rb = (RadioButton) context.findViewById(checkedId);
+            real_activity = rb.getText().toString();
+        }
+
+    };
 
 
     private SensorEventListener mSensorEventListener = new SensorEventListener() {
@@ -164,9 +201,16 @@ public class MultiSensors {
                     //txv.append("\nSteps: " + event.values[0]);
                     break;
                 case Sensor.TYPE_ACCELEROMETER:
-                    txv.setText("\nAccelerometer X: " + event.values[0]
+                    txv.append("\nAccelerometer X: " + event.values[0]
                      + "\nAccelerometer Y: " + event.values[1]
                      + "\nAccelerometer Z: " + event.values[2]);
+                    break;
+                case Sensor.TYPE_GYROSCOPE:
+                    txv.append("\nGyroscope X: " + event.values[0]
+                     + "\nGyroscope Y: " + event.values[1]
+                     + "\nGyroscope Z: " + event.values[2]);
+                    break;
+                default:
                     break;
 
             }
@@ -450,6 +494,7 @@ public class MultiSensors {
 //                }
 
                 step_interval = 0;
+                distance_interval = 0;
                 //FitActivity fitActivity = new FitActivity(val, step_interval, time_interval, real_activity);
                 //FirebaseDatabase database = FirebaseDatabase.getInstance();
                 //DatabaseReference mDatabase = database.getReference()

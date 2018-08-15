@@ -41,14 +41,23 @@
         <!--<item>Calories</item>-->
     </string-array>
 
+    <string-array name="multiSensors">
+        <item>Step</item>
+        <item>Accelerometer</item>
+        <item>Gyroscope</item>
+        <!--<item>Speed</item>-->
+        <!--<item>Weight</item>-->
+        <!--<item>Nutrition</item>-->
+        <!--<item>Heart Rate BPM</item>-->
+        <!--<item>Calories</item>-->
+    </string-array>
+
     <string-array name="activity">
         <item>still</item>
         <item>walking</item>
         <item>running</item>
         <item>biking</item>
         <item>in vehicle</item>
-        <item>on foot</item>
         <item>tilting</item>
-        <item>unknown</item>
     </string-array>
 </resources>

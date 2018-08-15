@@ -75,8 +75,12 @@ public class MainActivity extends AppCompatActivity {
     public static int lastPosition = 0;
 
     boolean[] flags = new boolean[]{};//init multichoice = false
+    boolean[] multiflags = new boolean[]{};//init multichoice = false
     String[] sensorItems = null;
+    String[] multiSensorItems = null;
     private List<String> sensors_list = new ArrayList<String>();
+    private List<String> multiSensors_list = new ArrayList<String>();
+
     public static final Map<String, DataType> datatype_map = createDataTypeMap();
     private static Map<String, DataType> createDataTypeMap()
     {
@@ -192,8 +196,11 @@ public class MainActivity extends AppCompatActivity {
         /** set multichoice dialog */
 
         sensorItems = getResources().getStringArray(R.array.sensors);
+        multiSensorItems = getResources().getStringArray(R.array.multiSensors);
         flags = new boolean[sensorItems.length];
+        multiflags = new boolean[multiSensorItems.length];
         Arrays.fill(flags, false);
+        Arrays.fill(multiflags, false);
 
 
         /** Log in */
@@ -408,10 +415,10 @@ public class MainActivity extends AppCompatActivity {
                         public void onClick(View view) {
                             txvResult = (TextView) findViewById(R.id.multisensorstxView);
                             txvResult.setMovementMethod(new ScrollingMovementMethod());
-                            if (sensors_list.size() > 0){
+                            if (multiSensors_list.size() > 0){
                                 txvResult.setText(sensors_list.toString());
                                 mSensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
-                                multiSensorsapi.start(context, mSensorManager, sensors_list);
+                                multiSensorsapi.start(context, mSensorManager, multiSensors_list);
                             }
                             else {
                                 txvResult.setText("You haven't choose the sensors!");
@@ -455,6 +462,8 @@ public class MainActivity extends AppCompatActivity {
                         }
 
                     });
+                    break;
+                default:
                     break;
             }
 
@@ -501,6 +510,8 @@ public class MainActivity extends AppCompatActivity {
             case 3:
                 getMenuInflater().inflate(R.menu.recording_menu, menu);
                 break;
+            default:
+                break;
 
         }
         return true;
@@ -517,6 +528,9 @@ public class MainActivity extends AppCompatActivity {
         int id = item.getItemId();
         if (id == R.id.action_settings) {
             showDialog(1);
+        }
+        else if (id == R.id.set_multiSensors) {
+            showDialog(2);
         }
         else if (id == R.id.action_unregister_listener) {
             sensorsapi.unregisterFitnessDataListener();
@@ -543,9 +557,9 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected Dialog onCreateDialog(int id) {
         Dialog dialog = null;
-        final boolean[] tempFlags = flags.clone();
         switch (id) {
             case 1:
+                boolean[] tempFlags = flags.clone();
                 AlertDialog.Builder builderSensor = new AlertDialog.Builder(this);
                 builderSensor.setTitle("Choose Sensors");
                 builderSensor.setMultiChoiceItems(sensorItems, flags, new DialogInterface.OnMultiChoiceClickListener() {
@@ -591,6 +605,54 @@ public class MainActivity extends AppCompatActivity {
                     }
                 });
                 dialog = builderSensor.create();
+                break;
+            case 2:
+                boolean[] tempMultiFlags = multiflags.clone();
+                AlertDialog.Builder builderMultiSensor = new AlertDialog.Builder(this);
+                builderMultiSensor.setTitle("Choose Sensors");
+                builderMultiSensor.setMultiChoiceItems(multiSensorItems, multiflags, new DialogInterface.OnMultiChoiceClickListener() {
+
+                    @Override
+                    public void onClick(DialogInterface dialog, int which, boolean isChecked) {
+                        tempMultiFlags[which] = isChecked;
+                    }
+                });
+                builderMultiSensor.setPositiveButton("OK", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        boolean hasChoose = false;
+                        for (boolean flag : tempMultiFlags) {
+                            if (flag) {
+                                hasChoose = true;
+                                break;
+                            }
+                        }
+                        if (hasChoose){
+                            List<String> result = new ArrayList<String>();
+                            multiflags = tempMultiFlags.clone();
+                            for (int i = 0; i < multiflags.length; i++) {
+                                if(multiflags[i])
+                                {
+                                    result.add(multiSensorItems[i]);
+                                }
+                            }
+                            multiSensors_list = new ArrayList<String>(result);
+                        }
+                        else {
+                            txvResult = (TextView) findViewById(R.id.multisensorstxView);
+                            txvResult.setMovementMethod(new ScrollingMovementMethod());
+                            txvResult.setText("");
+                            txvResult.setText("You haven't choose the sensors!");
+                        }
+                    }
+                });
+                builderMultiSensor.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+
+                    }
+                });
+                dialog = builderMultiSensor.create();
                 break;
 
             default:
