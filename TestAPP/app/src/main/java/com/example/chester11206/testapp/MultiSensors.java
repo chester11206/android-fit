@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.DialogInterface;
 import android.hardware.Sensor;
+import android.hardware.SensorDirectChannel;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
@@ -57,33 +58,36 @@ public class MultiSensors {
     private OnDataPointListener mListener;
 
     private SensorManager mSensorManager;
-    private List<Sensor> mSensor;
 
     private String [] activityItems = null;
     private String real_activity;
 
     private long start_time;
-    private boolean startListen = true;
+    private boolean startListen = false;
     private long time_interval = 0;
     private float distance_interval = 0;
     private float step_interval = 0;
     private float stepStop = 0;
     private float stepStart = 0;
 
-    private Map<DataType, Integer> to_predict = new HashMap<DataType, Integer>();
+    private List<acceData> acceDataSet = new ArrayList<acceData>();
+    private List<gyroData> gyroDataSet = new ArrayList<gyroData>();
+    private int acceNum = 0;
+    private int gyroNum = 0;
 
-    private CheckBox Still;
-    private CheckBox Walking;
-    private CheckBox Running;
-    private CheckBox Biking;
-    private CheckBox In_Vehicle;
-    private CheckBox Tilting;
+    private Map<DataType, Integer> to_predict = new HashMap<DataType, Integer>();
 
     private Handler handler = new Handler( );
     private Runnable runnable = new Runnable( ) {
         public void run ( ) {
-            getActivity();
-            handler.postDelayed(this,5000);
+            startListen = false;
+            if(mSensorManager!=null){
+                mSensorManager.unregisterListener(mSensorEventListener);
+            }
+            txvResult.append("\nNum: " + acceNum + " " + gyroNum);
+            handler.removeCallbacks(runnable);
+            //getActivity();
+            //handler.postDelayed(this,5000);
         }
     };
 
@@ -98,6 +102,39 @@ public class MultiSensors {
         myMap.put("Accelerometer", Sensor.TYPE_ACCELEROMETER);
         myMap.put("Gyroscope", Sensor.TYPE_GYROSCOPE);
         return myMap;
+    }
+
+    public class acceData {
+        private float accelerometerX = 0;
+        private float accelerometerY = 0;
+        private float accelerometerZ = 0;
+
+        public acceData() {}
+        public void setAccelerometer(float aX, float aY, float aZ) {
+            accelerometerX = aX;
+            accelerometerY = aY;
+            accelerometerZ = aZ;
+        }
+        public void setAccelerometerX(float aX) {accelerometerX = aX;}
+        public void setAccelerometerY(float aY) {accelerometerX = aY;}
+        public void setAccelerometerZ(float aZ) {accelerometerX = aZ;}
+
+    }
+
+    public class gyroData {
+        private float gyroscopeX = 0;
+        private float gyroscopeY = 0;
+        private float gyroscopeZ = 0;
+
+        public gyroData() {}
+        public void setGyroscope(float gX, float gY, float gZ) {
+            gyroscopeX = gX;
+            gyroscopeY = gY;
+            gyroscopeZ = gZ;
+        }
+        public void setGyroscopeX(float gX) {gyroscopeX = gX;}
+        public void setGyroscopeY(float gY) {gyroscopeX = gY;}
+        public void setGyroscopeZ(float gZ) {gyroscopeX = gZ;}
     }
 
     public void start(Activity activity, SensorManager SensorManager, List<String> sensors_list) {
@@ -143,8 +180,9 @@ public class MultiSensors {
     }
 
     private void sensorStart() {
-        startListen = true;
         start_time = MainActivity.timeNow;
+        startListen = true;
+        handler.postDelayed(runnable,2000);
 
         to_predict.put(DataType.TYPE_DISTANCE_DELTA, 0);
         //findFitnessDataSources(DataType.TYPE_ACTIVITY_SAMPLES);
@@ -183,36 +221,45 @@ public class MultiSensors {
         @Override
         public void onSensorChanged(SensorEvent event) {
             TextView txv = textview_map.get(event.sensor.getType());
-            switch (event.sensor.getType()) {
-                case Sensor.TYPE_STEP_COUNTER:
-                    if (stepStart == 0) {
-                        stepStart = event.values[0];
-                    }
-                    if (startListen) {
-                        stepStop = event.values[0];
-                    }
-                    else {
-                        stepStart = event.values[0];
-                    }
+            if(startListen) {
+                switch (event.sensor.getType()) {
+                    case Sensor.TYPE_STEP_COUNTER:
+                        if (stepStart == 0) {
+                            stepStart = event.values[0];
+                        }
+                        if (startListen) {
+                            stepStop = event.values[0];
+                        } else {
+                            stepStart = event.values[0];
+                        }
 //                    if (mStepOffset == 0) {
 //                        mStepOffset = event.values[0];
 //                        txv.append("\nSteps: " + (event.values[0] - mStepOffset));
 //                    }
-                    //txv.append("\nSteps: " + event.values[0]);
-                    break;
-                case Sensor.TYPE_ACCELEROMETER:
-                    txv.append("\nAccelerometer X: " + event.values[0]
-                     + "\nAccelerometer Y: " + event.values[1]
-                     + "\nAccelerometer Z: " + event.values[2]);
-                    break;
-                case Sensor.TYPE_GYROSCOPE:
-                    txv.append("\nGyroscope X: " + event.values[0]
-                     + "\nGyroscope Y: " + event.values[1]
-                     + "\nGyroscope Z: " + event.values[2]);
-                    break;
-                default:
-                    break;
+                        //txv.append("\nSteps: " + event.values[0]);
+                        break;
+                    case Sensor.TYPE_ACCELEROMETER:
+                        txv.setText("\nAccelerometer X: " + event.values[0]
+                                + "\nAccelerometer Y: " + event.values[1]
+                                + "\nAccelerometer Z: " + event.values[2]);
+                        acceData acceData = new acceData();
+                        acceData.setAccelerometer(event.values[0], event.values[1], event.values[2]);
+                        acceDataSet.add(acceData);
+                        acceNum++;
+                        break;
+                    case Sensor.TYPE_GYROSCOPE:
+                        txv.setText("\nGyroscope X: " + event.values[0]
+                                + "\nGyroscope Y: " + event.values[1]
+                                + "\nGyroscope Z: " + event.values[2]);
+                        gyroData gyroData = new gyroData();
+                        gyroData.setGyroscope(event.values[0], event.values[1], event.values[2]);
+                        gyroDataSet.add(gyroData);
+                        gyroNum++;
+                        break;
+                    default:
+                        break;
 
+                }
             }
 
 
