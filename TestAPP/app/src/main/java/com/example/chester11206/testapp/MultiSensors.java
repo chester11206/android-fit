@@ -1,5 +1,14 @@
 package com.example.chester11206.testapp;
 
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.IgnoreExtraProperties;
+import com.opencsv.CSVWriter;
+import com.opencsv.bean.StatefulBeanToCsv;
+import com.opencsv.bean.StatefulBeanToCsvBuilder;
+import com.opencsv.exceptions.CsvDataTypeMismatchException;
+import com.opencsv.exceptions.CsvRequiredFieldEmptyException;
+
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.DialogInterface;
@@ -42,8 +51,13 @@ import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.android.gms.tasks.Task;
 
+import java.io.IOException;
+import java.io.Writer;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.text.DateFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -60,7 +74,7 @@ public class MultiSensors {
     private SensorManager mSensorManager;
 
     private String [] activityItems = null;
-    private String real_activity;
+    private String real_activity = "Still";
 
     private long start_time;
     private boolean startListen = false;
@@ -70,26 +84,19 @@ public class MultiSensors {
     private float stepStop = 0;
     private float stepStart = 0;
 
+    //Map<String, SensorData> SensorDataSet = new HashMap<String, SensorData>();
+    private List<Map<String, Float>> SensorDataSet = new ArrayList<Map<String, Float>>();
     private List<acceData> acceDataSet = new ArrayList<acceData>();
     private List<gyroData> gyroDataSet = new ArrayList<gyroData>();
     private int acceNum = 0;
     private int gyroNum = 0;
+    private int startNum = 0;
+    private int stopNum = 0;
+    private List<Map<String, Integer>> real_activitySet = new ArrayList<Map<String, Integer>>();
+
+    private DatabaseReference mDatabase;
 
     private Map<DataType, Integer> to_predict = new HashMap<DataType, Integer>();
-
-    private Handler handler = new Handler( );
-    private Runnable runnable = new Runnable( ) {
-        public void run ( ) {
-            startListen = false;
-            if(mSensorManager!=null){
-                mSensorManager.unregisterListener(mSensorEventListener);
-            }
-            txvResult.append("\nNum: " + acceNum + " " + gyroNum);
-            handler.removeCallbacks(runnable);
-            //getActivity();
-            //handler.postDelayed(this,5000);
-        }
-    };
 
     LinearLayout ll;
 
@@ -104,10 +111,32 @@ public class MultiSensors {
         return myMap;
     }
 
+    @IgnoreExtraProperties
+    public class SensorData {
+        public float accelerometerX=0;
+//        public float accelerometerY=0;
+//        public float accelerometerZ=0;
+//        public float gyroscopeX=0;
+//        public float gyroscopeY=0;
+//        public float gyroscopeZ=0;
+
+        public SensorData() {}
+
+//        public SensorData(acceData acceData, gyroData gyroData) {
+//            this.accelerometerX = acceData.getAccelerometerX();
+//            this.accelerometerY = acceData.getAccelerometerY();
+//            this.accelerometerZ = acceData.getAccelerometerZ();
+//            this.gyroscopeX = gyroData.getGyroscopeX();
+//            this.gyroscopeY = gyroData.getGyroscopeY();
+//            this.gyroscopeZ = gyroData.getGyroscopeZ();
+//        }
+    }
+
+    @IgnoreExtraProperties
     public class acceData {
-        private float accelerometerX = 0;
-        private float accelerometerY = 0;
-        private float accelerometerZ = 0;
+        public float accelerometerX = 0;
+        public float accelerometerY = 0;
+        public float accelerometerZ = 0;
 
         public acceData() {}
         public void setAccelerometer(float aX, float aY, float aZ) {
@@ -118,13 +147,17 @@ public class MultiSensors {
         public void setAccelerometerX(float aX) {accelerometerX = aX;}
         public void setAccelerometerY(float aY) {accelerometerX = aY;}
         public void setAccelerometerZ(float aZ) {accelerometerX = aZ;}
+        public float getAccelerometerX() {return accelerometerX;}
+        public float getAccelerometerY() {return accelerometerY;}
+        public float getAccelerometerZ() {return accelerometerZ;}
 
     }
 
+    @IgnoreExtraProperties
     public class gyroData {
-        private float gyroscopeX = 0;
-        private float gyroscopeY = 0;
-        private float gyroscopeZ = 0;
+        public float gyroscopeX = 0;
+        public float gyroscopeY = 0;
+        public float gyroscopeZ = 0;
 
         public gyroData() {}
         public void setGyroscope(float gX, float gY, float gZ) {
@@ -135,10 +168,16 @@ public class MultiSensors {
         public void setGyroscopeX(float gX) {gyroscopeX = gX;}
         public void setGyroscopeY(float gY) {gyroscopeX = gY;}
         public void setGyroscopeZ(float gZ) {gyroscopeX = gZ;}
+        public float getGyroscopeX() {return gyroscopeX;}
+        public float getGyroscopeY() {return gyroscopeY;}
+        public float getGyroscopeZ() {return gyroscopeZ;}
     }
 
     public void start(Activity activity, SensorManager SensorManager, List<String> sensors_list) {
         context = activity;
+        mDatabase = FirebaseDatabase.getInstance().getReference();
+        //mDatabase.child("SensorDataSet").removeValue();
+
         txvResult = (TextView) this.context.findViewById(R.id.multisensorstxView);
         txvResult.setMovementMethod(new ScrollingMovementMethod());
         ll = (LinearLayout) context.findViewById(R.id.sensors_display);
@@ -168,9 +207,11 @@ public class MultiSensors {
         Button stopbtn = (Button) context.findViewById(R.id.stopbtn);
         stopbtn.setOnClickListener(new View.OnClickListener() {
             public void onClick(View view) {
-                if(mSensorManager!=null){
+                startListen = false;
+                if (mSensorManager != null) {
                     mSensorManager.unregisterListener(mSensorEventListener);
                 }
+                handler.removeCallbacks(runnable);
             }
         });
 
@@ -189,6 +230,38 @@ public class MultiSensors {
         //findFitnessDataSources(DataType.TYPE_DISTANCE_DELTA);
     }
 
+    private Handler handler = new Handler( );
+    private Runnable runnable = new Runnable( ) {
+        public void run ( ) {
+            txvResult.append("\nNum: " + acceNum + " " + gyroNum + " " + real_activity);
+            startNum = stopNum;
+            stopNum = acceNum;
+            txvResult.append("\nNum: " + startNum + " " + stopNum + " " + real_activity);
+
+            for(int i = startNum; i < stopNum; i++) {
+                Map<String, Float> SensorData = new HashMap<String, Float>();
+                SensorData.put("accelerometerX", acceDataSet.get(i).getAccelerometerX());
+                SensorData.put("accelerometerY", acceDataSet.get(i).getAccelerometerY());
+                SensorData.put("accelerometerZ", acceDataSet.get(i).getAccelerometerZ());
+                SensorData.put("gyroscopeX", gyroDataSet.get(i).getGyroscopeX());
+                SensorData.put("gyroscopeY", gyroDataSet.get(i).getGyroscopeY());
+                SensorData.put("gyroscopeZ", gyroDataSet.get(i).getGyroscopeZ());
+                //SensorData SensorData = new SensorData();
+                //SensorData.set(acceDataSet.get(i), gyroDataSet.get(i));
+                SensorDataSet.add(SensorData);
+                mDatabase.child("SensorDataSet").push().setValue(SensorData);
+
+                //break;
+            }
+
+            handler.postDelayed(this,2000);
+
+            //mDatabase.child("SensorDataSet").setValue(SensorDataSet);
+            //getActivity();
+            //handler.postDelayed(this,5000);
+        }
+    };
+
     private void getActivity(){
 
         handler.removeCallbacks(runnable);
@@ -205,6 +278,7 @@ public class MultiSensors {
                                      int checkedId) {
             RadioButton rb = (RadioButton) context.findViewById(checkedId);
             real_activity = rb.getText().toString();
+            txvResult.append("\n" + real_activity);
         }
 
     };
@@ -246,6 +320,21 @@ public class MultiSensors {
                         acceData.setAccelerometer(event.values[0], event.values[1], event.values[2]);
                         acceDataSet.add(acceData);
                         acceNum++;
+
+                        if (acceNum % 450 == 0) {
+                            String ra = real_activity;
+                            Map<String, Integer> real_activity = new HashMap<String, Integer>();
+                            for (String activity : activityItems) {
+                                if (activity.equals(ra)) {
+                                    real_activity.put(activity, 1);
+                                }
+                                else {
+                                    real_activity.put(activity, 0);
+                                }
+                            }
+                            real_activitySet.add(real_activity);
+                            mDatabase.child("GroundTruth").push().setValue(real_activity);
+                        }
                         break;
                     case Sensor.TYPE_GYROSCOPE:
                         txv.setText("\nGyroscope X: " + event.values[0]
@@ -260,8 +349,26 @@ public class MultiSensors {
                         break;
 
                 }
-            }
 
+//                if (acceNum == 500) {
+//                    txvResult.append("\nNum: " + acceNum + " " + gyroNum + " " + real_activity);
+//                    startListen = false;
+//                    if(mSensorManager!=null){
+//                        mSensorManager.unregisterListener(mSensorEventListener);
+//                    }
+//
+//                    startNum = stopNum;
+//                    stopNum = acceNum;
+//                    for(int i = startNum; i < stopNum; i++) {
+//                        SensorData SensorData = new SensorData();
+//                        //SensorData.set(acceDataSet.get(i), gyroDataSet.get(i));
+//                        SensorDataSet.add(SensorData);
+//                        mDatabase.child("SensorDataSet").push().setValue(SensorData);
+//
+//                        //break;
+//                    }
+//                }
+            }
 
         }
     };

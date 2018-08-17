@@ -416,7 +416,6 @@ public class MainActivity extends AppCompatActivity {
                             txvResult = (TextView) findViewById(R.id.multisensorstxView);
                             txvResult.setMovementMethod(new ScrollingMovementMethod());
                             if (multiSensors_list.size() > 0){
-                                txvResult.setText(sensors_list.toString());
                                 mSensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
                                 multiSensorsapi.start(context, mSensorManager, multiSensors_list);
                             }
