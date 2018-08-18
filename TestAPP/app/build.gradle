@@ -49,6 +49,8 @@ dependencies {
     implementation 'com.google.gms:google-services:4.0.2'
 
     implementation "com.opencsv:opencsv:4.0"
+
+    implementation "org.tensorflow:tensorflow-lite:+"
 }
 
 apply plugin: 'com.google.gms.google-services'

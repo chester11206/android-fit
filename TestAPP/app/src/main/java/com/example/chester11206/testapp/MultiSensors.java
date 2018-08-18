@@ -59,6 +59,7 @@ import java.text.DateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -84,8 +85,9 @@ public class MultiSensors {
     private float stepStop = 0;
     private float stepStart = 0;
 
+    private boolean startPredict = false;
     //Map<String, SensorData> SensorDataSet = new HashMap<String, SensorData>();
-    private List<Map<String, Float>> SensorDataSet = new ArrayList<Map<String, Float>>();
+    //private List<Map<String, Float>> SensorDataSet = new ArrayList<Map<String, Float>>();
     private List<acceData> acceDataSet = new ArrayList<acceData>();
     private List<gyroData> gyroDataSet = new ArrayList<gyroData>();
     private int acceNum = 0;
@@ -96,15 +98,15 @@ public class MultiSensors {
 
     private DatabaseReference mDatabase;
 
-    private Map<DataType, Integer> to_predict = new HashMap<DataType, Integer>();
+    private Map<DataType, Integer> to_predict = new LinkedHashMap<DataType, Integer>();
 
     LinearLayout ll;
 
-    public static final Map<Integer, TextView> textview_map = new HashMap<Integer, TextView>();
+    public static final Map<Integer, TextView> textview_map = new LinkedHashMap<Integer, TextView>();
     public static final Map<String, Integer> sensorstype_map = createSensorsTypeMap();
     private static Map<String, Integer> createSensorsTypeMap()
     {
-        Map<String, Integer> myMap = new HashMap<String, Integer>();
+        Map<String, Integer> myMap = new LinkedHashMap<String, Integer>();
         myMap.put("Step", Sensor.TYPE_STEP_COUNTER);
         myMap.put("Accelerometer", Sensor.TYPE_ACCELEROMETER);
         myMap.put("Gyroscope", Sensor.TYPE_GYROSCOPE);
@@ -215,6 +217,13 @@ public class MultiSensors {
             }
         });
 
+        Button predictbtn = (Button) context.findViewById(R.id.predictbtn);
+        stopbtn.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View view) {
+                startPredict = true;
+            }
+        });
+
         sensorStart();
         //handler.postDelayed(runnable,1000);
 
@@ -238,8 +247,9 @@ public class MultiSensors {
             stopNum = acceNum;
             txvResult.append("\nNum: " + startNum + " " + stopNum + " " + real_activity);
 
+            List<Map<String, Float>> SensorDataSet = new ArrayList<Map<String, Float>>();
             for(int i = startNum; i < stopNum; i++) {
-                Map<String, Float> SensorData = new HashMap<String, Float>();
+                Map<String, Float> SensorData = new LinkedHashMap<String, Float>();
                 SensorData.put("accelerometerX", acceDataSet.get(i).getAccelerometerX());
                 SensorData.put("accelerometerY", acceDataSet.get(i).getAccelerometerY());
                 SensorData.put("accelerometerZ", acceDataSet.get(i).getAccelerometerZ());
@@ -252,6 +262,11 @@ public class MultiSensors {
                 mDatabase.child("SensorDataSet").push().setValue(SensorData);
 
                 //break;
+            }
+            if (startPredict) {
+                WriterIdentify writerIdentify = WriterIdentify.newInstance(context);
+                writerIdentify.run(SensorDataSet);
+                txvResult.append("\nResult: " + writerIdentify.getResult());
             }
 
             handler.postDelayed(this,2000);
@@ -323,7 +338,7 @@ public class MultiSensors {
 
                         if (acceNum % 450 == 0) {
                             String ra = real_activity;
-                            Map<String, Integer> real_activity = new HashMap<String, Integer>();
+                            Map<String, Integer> real_activity = new LinkedHashMap<String, Integer>();
                             for (String activity : activityItems) {
                                 if (activity.equals(ra)) {
                                     real_activity.put(activity, 1);
