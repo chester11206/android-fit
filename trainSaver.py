@@ -44,7 +44,7 @@ class_num = 10
 
 _batch_size = 128
 
-epoch_num = 10
+epoch_num = 2000
 
 train_p = 0.8
 
@@ -235,11 +235,11 @@ with tf.Session(config=config) as sess:
 
 	frozen_tensors = [out]
 	# print ([out])
-	# out_tensors = [out]
+	out_tensors = [out]
 
 	frozen_graphdef = tf.graph_util.convert_variables_to_constants(sess, sess.graph_def, list(map(canonical_name, frozen_tensors)))
 	tf.train.write_graph(frozen_graphdef, "model",
                      'rnn.pb', as_text=False)
-	# tflite_model = tf.contrib.lite.toco_convert(frozen_graphdef, [_X], out_tensors)
+	tflite_model = tf.contrib.lite.toco_convert(frozen_graphdef, [_X], out_tensors, allow_custom_ops=True)
 
-	# open("writer_model.tflite", "wb").write(tflite_model)
+	open("writer_model.tflite", "wb").write(tflite_model)
