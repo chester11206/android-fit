@@ -79,6 +79,8 @@ public class MultiSensors {
 
     private long start_time;
     private boolean startListen = false;
+    private boolean startListen_acce = false;
+    private boolean startListen_gyro = false;
     private long time_interval = 0;
     private float distance_interval = 0;
     private float step_interval = 0;
@@ -232,8 +234,9 @@ public class MultiSensors {
 
     private void sensorStart() {
         start_time = MainActivity.timeNow;
-        startListen = true;
-        handler.postDelayed(runnable,2000);
+        startListen_acce = true;
+        startListen_gyro = true;
+        //handler.postDelayed(runnable,2000);
 
         to_predict.put(DataType.TYPE_DISTANCE_DELTA, 0);
         //findFitnessDataSources(DataType.TYPE_ACTIVITY_SAMPLES);
@@ -311,24 +314,9 @@ public class MultiSensors {
         @Override
         public void onSensorChanged(SensorEvent event) {
             TextView txv = textview_map.get(event.sensor.getType());
-            if(startListen) {
-                switch (event.sensor.getType()) {
-                    case Sensor.TYPE_STEP_COUNTER:
-                        if (stepStart == 0) {
-                            stepStart = event.values[0];
-                        }
-                        if (startListen) {
-                            stepStop = event.values[0];
-                        } else {
-                            stepStart = event.values[0];
-                        }
-//                    if (mStepOffset == 0) {
-//                        mStepOffset = event.values[0];
-//                        txv.append("\nSteps: " + (event.values[0] - mStepOffset));
-//                    }
-                        //txv.append("\nSteps: " + event.values[0]);
-                        break;
-                    case Sensor.TYPE_ACCELEROMETER:
+            switch (event.sensor.getType()) {
+                case Sensor.TYPE_ACCELEROMETER:
+                    if(startListen_acce) {
                         txv.setText("\nAccelerometer X: " + event.values[0]
                                 + "\nAccelerometer Y: " + event.values[1]
                                 + "\nAccelerometer Z: " + event.values[2]);
@@ -338,21 +326,60 @@ public class MultiSensors {
                         acceNum++;
 
                         if (acceNum % 450 == 0) {
-                            String ra = real_activity;
-                            Map<String, Integer> real_activity = new LinkedHashMap<String, Integer>();
-                            for (String activity : activityItems) {
-                                if (activity.equals(ra)) {
-                                    real_activity.put(activity, 1);
-                                }
-                                else {
-                                    real_activity.put(activity, 0);
-                                }
-                            }
-                            real_activitySet.add(real_activity);
-                            mDatabase.child("GroundTruth").push().setValue(real_activity);
+                            startListen_acce = false;
                         }
-                        break;
-                    case Sensor.TYPE_GYROSCOPE:
+//                        if (acceNum % 450 == 0) {
+//                            startListen_acce = false;
+//                            String ra = real_activity;
+//                            Map<String, Integer> real_activity = new LinkedHashMap<String, Integer>();
+//                            for (String activity : activityItems) {
+//                                if (activity.equals(ra)) {
+//                                    real_activity.put(activity, 1);
+//                                } else {
+//                                    real_activity.put(activity, 0);
+//                                }
+//                            }
+//                            real_activitySet.add(real_activity);
+//                            mDatabase.child("GroundTruth").push().setValue(real_activity);
+//                        }
+                    }
+                    if (!startListen_acce && !startListen_gyro) {
+                        String ra = real_activity;
+                        startNum = stopNum;
+                        stopNum = acceNum;
+                        txvResult.setText("\nNum: " + startNum + " to " + stopNum + " " + "Activity: " + ra);
+
+                        //List<Map<String, Float>> SensorDataSet = new ArrayList<Map<String, Float>>();
+                        Map<String, Float> SensorData = new LinkedHashMap<String, Float>();
+                        int idx = 0;
+                        for(int i = startNum; i < stopNum; i++) {
+                            SensorData.put("accelerometerX" + idx, acceDataSet.get(i).getAccelerometerX());
+                            SensorData.put("accelerometerY" + idx, acceDataSet.get(i).getAccelerometerY());
+                            SensorData.put("accelerometerZ" + idx, acceDataSet.get(i).getAccelerometerZ());
+                            SensorData.put("gyroscopeX" + idx, gyroDataSet.get(i).getGyroscopeX());
+                            SensorData.put("gyroscopeY" + idx, gyroDataSet.get(i).getGyroscopeY());
+                            SensorData.put("gyroscopeZ" + idx, gyroDataSet.get(i).getGyroscopeZ());
+                            idx++;
+                            //SensorData SensorData = new SensorData();
+                            //SensorData.set(acceDataSet.get(i), gyroDataSet.get(i));
+                            //SensorDataSet.add(SensorData);
+
+                            //break;
+                        }
+                        for (String activity : activityItems) {
+                            if (activity.equals(ra)) {
+                                SensorData.put(activity, (float)1);
+                            } else {
+                                SensorData.put(activity, (float)0);
+                            }
+                        }
+                        mDatabase.child("SensorDataSet").push().setValue(SensorData);
+                        startListen_acce = true;
+                        startListen_gyro = true;
+                    }
+                    break;
+                case Sensor.TYPE_GYROSCOPE:
+                    if(startListen_gyro) {
                         txv.setText("\nGyroscope X: " + event.values[0]
                                 + "\nGyroscope Y: " + event.values[1]
                                 + "\nGyroscope Z: " + event.values[2]);
@@ -360,11 +387,16 @@ public class MultiSensors {
                         gyroData.setGyroscope(event.values[0], event.values[1], event.values[2]);
                         gyroDataSet.add(gyroData);
                         gyroNum++;
-                        break;
-                    default:
-                        break;
 
-                }
+                        if (gyroNum % 450 == 0) {
+                            startListen_gyro = false;
+                        }
+                    }
+                    break;
+                default:
+                    break;
+
+            }
 
 //                if (acceNum == 500) {
 //                    txvResult.append("\nNum: " + acceNum + " " + gyroNum + " " + real_activity);
@@ -384,7 +416,6 @@ public class MultiSensors {
 //                        //break;
 //                    }
 //                }
-            }
 
         }
     };

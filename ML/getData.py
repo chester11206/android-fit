@@ -1,6 +1,17 @@
 import pyrebase
 import pandas as pd
 import numpy as np
+import csv
+import sys
+import os
+import firebase_admin
+from firebase_admin import credentials
+from firebase_admin import db
+
+cred = credentials.Certificate('firebase-adminsdk.json')
+firebase_admin.initialize_app(cred, {
+    'databaseURL' : 'https://total-cascade-210406.firebaseio.com'
+})
 
 configfb = {"apiKey": "AIzaSyBkvh_XeJKp1v5XiRSiQEOsfiG5tfV7d9Y",
 "authDomain": "total-cascade-210406.firebaseapp.com",
@@ -9,9 +20,23 @@ configfb = {"apiKey": "AIzaSyBkvh_XeJKp1v5XiRSiQEOsfiG5tfV7d9Y",
 }
 timestep_size = 450
 
+class_num = 6
+
 train_p = 0.8
 
-def connect_firebase():
+def connect_firebase_admin():
+    root = db.reference()
+    values = root.child('SensorDataSet').get()
+    data = pd.DataFrame(values)
+    #print (data[0:6].T)
+    npdata = np.array(data.values).T
+
+    print (npdata.shape)
+    print (npdata[0:5,:])
+
+    return npdata
+
+def connect_firebase_pyrebase():
 # add a way to encrypt those, I'm a starter myself and don't know how
     username = "chester11206@gmail.com"
     password = "abcd1234"
@@ -27,38 +52,72 @@ def connect_firebase():
 
     #set database
     db = firebase.database()
-    valuesX = db.child('SensorDataSet').get()
-    print (valuesX.val())
-    dataX = pd.DataFrame(valuesX.val())
-    npdataX = np.array(dataX.values).T
+    values = db.child('SensorDataSet').get()
+    data = pd.DataFrame(values.val())
+    #print (dataX[0:6].T)
+    npdata = np.array(data.values).T
 
-    valuesY = db.child('GroundTruth').get()
-    dataY = pd.DataFrame(valuesY.val())
-    npdataY = np.array(dataY.values).T
+    print (npdata.shape)
+    print (npdata[0:5,:])
 
-    new_dataX = []
-    for i in range(0, npdataX.shape[0] , timestep_size):
-        if i+timestep_size < npdataX.shape[0]-1 :
-            new_dataX.append(npdataX[i:i+timestep_size, :].flatten())
-    new_dataX = np.array(new_dataX)
+    # new_dataX = []
+    # for i in range(0, npdataX.shape[0] , timestep_size):
+    #     if i+timestep_size < npdataX.shape[0]-1 :
+    #         new_dataX.append(npdataX[i:i+timestep_size, :].flatten())
+    # new_dataX = np.array(new_dataX)
 
-    dataNum = new_dataX.shape[0]
-    new_dataY = npdataY[0:dataNum,:]
+    # # dataNum = new_dataX.shape[0]
+    # # new_dataY = npdataY[0:dataNum,:]
 
-    trainNum = int(dataNum*train_p)
-    trainX = new_dataX[0:trainNum,:]
-    trainY = new_dataY[0:trainNum,:]
-    testX = new_dataX[trainNum:dataNum,:]
-    testY = new_dataY[trainNum:dataNum,:]
+    # dataNum = npdataY.shape[0]
+    # new_dataY = npdataY
+    # new_dataX = new_dataX[0:dataNum,:]
+    # print (new_dataX.shape)
+    # print (new_dataY.shape)
 
-    print (trainX.shape)
-    print (trainY.shape)
-    print (testX.shape)
-    print (testY.shape)
+    # raw_data = np.hstack((new_dataY, new_dataX))
+    # print (raw_data.shape)
+    # print (raw_data[0:5,:])
 
-    return trainX, trainY, testX, testY
+    # trainNum = int(dataNum*train_p)
+    # trainX = new_dataX[0:trainNum,:]
+    # trainY = new_dataY[0:trainNum,:]
+    # testX = new_dataX[trainNum:dataNum,:]
+    # testY = new_dataY[trainNum:dataNum,:]
 
-trainX, trainY, testX, testY = connect_firebase()
+    # print (trainX.shape)
+    # print (trainY.shape)
+    # print (testX.shape)
+    # print (testY.shape)
+
+    return npdata
+
+def writetrain(raw_data):
+    folder_path = "data"
+    if not os.path.exists(folder_path):
+        os.mkdir(folder_path)
+    file_path = os.path.join(folder_path, sys.argv[1])
+    train_file = open(file_path,"w") #submit_final.csv
+    train_w = csv.writer(train_file)
+    train_w.writerow(["Biking", "In Vehicle", "Running", "Still", "Tilting", "Walking", "Features"])
+    for item in raw_data:
+        train_w.writerow(item)
+    train_file.close()
+
+raw_data = connect_firebase_admin()
+writetrain(raw_data)
+
+dataNum = raw_data.shape[0]
+trainNum = int(dataNum*train_p)
+trainX = raw_data[:trainNum, class_num:]
+trainY = raw_data[:trainNum, :class_num]
+testX = raw_data[trainNum:, class_num:]
+testY = raw_data[trainNum:,:class_num]
+
+print (trainX.shape)
+print (trainY.shape)
+print (testX.shape)
+print (testY.shape)
 
 #and now the hard/ easy part that took me a while to figure out:
 # notice the value inside the .child, it should be the parent name with all the cats keys

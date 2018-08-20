@@ -432,7 +432,6 @@ public class MainActivity extends AppCompatActivity {
                     removebtn.setOnClickListener(new View.OnClickListener() {
                         public void onClick(View view) {
                             DatabaseReference mDatabase = FirebaseDatabase.getInstance().getReference();
-                            mDatabase.child("GroundTruth").removeValue();
                             mDatabase.child("SensorDataSet").removeValue();
                             txvResult = (TextView) findViewById(R.id.multisensorstxView);
                             txvResult.append("\nRemove Succeed");
