@@ -193,9 +193,9 @@ public class MultiSensors {
 
             TextView txv = new TextView(context);
             //txv.setText(sensor);
-            TableRow.LayoutParams params = new TableRow.LayoutParams(0, TableRow.LayoutParams.WRAP_CONTENT, 1f);
+            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
 
-            txv.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 17);
+            txv.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 15);
             txv.setMovementMethod(new ScrollingMovementMethod());
             txv.setLayoutParams(params);
             ll.addView(txv);
@@ -209,6 +209,7 @@ public class MultiSensors {
         Button stopbtn = (Button) context.findViewById(R.id.stopbtn);
         stopbtn.setOnClickListener(new View.OnClickListener() {
             public void onClick(View view) {
+                txvResult.append("\nStop");
                 startListen = false;
                 if (mSensorManager != null) {
                     mSensorManager.unregisterListener(mSensorEventListener);
@@ -218,7 +219,7 @@ public class MultiSensors {
         });
 
         Button predictbtn = (Button) context.findViewById(R.id.predictbtn);
-        stopbtn.setOnClickListener(new View.OnClickListener() {
+        predictbtn.setOnClickListener(new View.OnClickListener() {
             public void onClick(View view) {
                 startPredict = true;
             }
@@ -242,10 +243,9 @@ public class MultiSensors {
     private Handler handler = new Handler( );
     private Runnable runnable = new Runnable( ) {
         public void run ( ) {
-            txvResult.append("\nNum: " + acceNum + " " + gyroNum + " " + real_activity);
             startNum = stopNum;
             stopNum = acceNum;
-            txvResult.append("\nNum: " + startNum + " " + stopNum + " " + real_activity);
+            txvResult.setText("\nNum: " + startNum + " to " + stopNum + " " + "Activity: " + real_activity);
 
             List<Map<String, Float>> SensorDataSet = new ArrayList<Map<String, Float>>();
             for(int i = startNum; i < stopNum; i++) {
@@ -263,11 +263,12 @@ public class MultiSensors {
 
                 //break;
             }
-            if (startPredict) {
-                WriterIdentify writerIdentify = WriterIdentify.newInstance(context);
-                writerIdentify.run(SensorDataSet);
-                txvResult.append("\nResult: " + writerIdentify.getResult());
-            }
+//            if (startPredict) {
+//                txvResult.append("\nPredict:" + startPredict);
+//                WriterIdentify writerIdentify = WriterIdentify.newInstance(context);
+//                writerIdentify.run(SensorDataSet);
+//                txvResult.append("\nResult: " + writerIdentify.getResult());
+//            }
 
             handler.postDelayed(this,2000);
 

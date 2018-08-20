@@ -36,6 +36,8 @@ import com.google.android.gms.fit.samples.common.logger.Log;
 import com.google.android.gms.fitness.Fitness;
 import com.google.android.gms.fitness.FitnessOptions;
 import com.google.android.gms.fitness.data.DataType;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
 
 import java.io.File;
 import java.io.IOException;
@@ -424,6 +426,16 @@ public class MainActivity extends AppCompatActivity {
                             }
 
 
+                        }
+                    });
+                    Button removebtn = (Button) findViewById(R.id.removebtn);
+                    removebtn.setOnClickListener(new View.OnClickListener() {
+                        public void onClick(View view) {
+                            DatabaseReference mDatabase = FirebaseDatabase.getInstance().getReference();
+                            mDatabase.child("GroundTruth").removeValue();
+                            mDatabase.child("SensorDataSet").removeValue();
+                            txvResult = (TextView) findViewById(R.id.multisensorstxView);
+                            txvResult.append("\nRemove Succeed");
                         }
                     });
                     break;
