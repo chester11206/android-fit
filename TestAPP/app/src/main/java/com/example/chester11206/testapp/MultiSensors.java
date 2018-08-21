@@ -353,12 +353,12 @@ public class MultiSensors {
                         Map<String, Float> SensorData = new LinkedHashMap<String, Float>();
                         int idx = 0;
                         for(int i = startNum; i < stopNum; i++) {
-                            SensorData.put("accelerometerX" + idx, acceDataSet.get(i).getAccelerometerX());
-                            SensorData.put("accelerometerY" + idx, acceDataSet.get(i).getAccelerometerY());
-                            SensorData.put("accelerometerZ" + idx, acceDataSet.get(i).getAccelerometerZ());
-                            SensorData.put("gyroscopeX" + idx, gyroDataSet.get(i).getGyroscopeX());
-                            SensorData.put("gyroscopeY" + idx, gyroDataSet.get(i).getGyroscopeY());
-                            SensorData.put("gyroscopeZ" + idx, gyroDataSet.get(i).getGyroscopeZ());
+                            SensorData.put("accelerometerX " + idx, acceDataSet.get(i).getAccelerometerX());
+                            SensorData.put("accelerometerY " + idx, acceDataSet.get(i).getAccelerometerY());
+                            SensorData.put("accelerometerZ " + idx, acceDataSet.get(i).getAccelerometerZ());
+                            SensorData.put("gyroscopeX " + idx, gyroDataSet.get(i).getGyroscopeX());
+                            SensorData.put("gyroscopeY " + idx, gyroDataSet.get(i).getGyroscopeY());
+                            SensorData.put("gyroscopeZ " + idx, gyroDataSet.get(i).getGyroscopeZ());
                             idx++;
                             //SensorData SensorData = new SensorData();
                             //SensorData.set(acceDataSet.get(i), gyroDataSet.get(i));

@@ -7,6 +7,7 @@ import os
 import firebase_admin
 from firebase_admin import credentials
 from firebase_admin import db
+from operator import itemgetter
 
 cred = credentials.Certificate('firebase-adminsdk.json')
 firebase_admin.initialize_app(cred, {
@@ -27,12 +28,19 @@ train_p = 0.8
 def connect_firebase_admin():
     root = db.reference()
     values = root.child('SensorDataSet').get()
-    data = pd.DataFrame(values)
-    #print (data[0:6].T)
-    npdata = np.array(data.values).T
+    data = pd.DataFrame(values).T
+    data_index = [[i.split()[0], int(i.split()[1])] for i in list(data)[class_num:]]
+    
+    sorted_data_index = sorted(data_index, key=itemgetter(1))
+    sorted_data_index = [i[0] + " " + str(i[1]) for i in sorted_data_index]
+    sorted_data_index = list(data)[:class_num] + sorted_data_index
+    
+    data = data.reindex(columns=sorted_data_index)
+    print (data)
 
+    npdata = np.array(data.values)
     print (npdata.shape)
-    print (npdata[0:5,:])
+    print (npdata[:,0:10])
 
     return npdata
 
@@ -110,14 +118,18 @@ writetrain(raw_data)
 dataNum = raw_data.shape[0]
 trainNum = int(dataNum*train_p)
 trainX = raw_data[:trainNum, class_num:]
-trainY = raw_data[:trainNum, :class_num]
+trainY = raw_data[:trainNum, :class_num].astype(int)
 testX = raw_data[trainNum:, class_num:]
-testY = raw_data[trainNum:,:class_num]
+testY = raw_data[trainNum:,:class_num].astype(int)
 
 print (trainX.shape)
 print (trainY.shape)
 print (testX.shape)
 print (testY.shape)
+print (trainX)
+print (trainY)
+print (testX)
+print (testY)
 
 #and now the hard/ easy part that took me a while to figure out:
 # notice the value inside the .child, it should be the parent name with all the cats keys
