@@ -7,33 +7,53 @@ import numpy as np
 import firebase_admin
 from firebase_admin import credentials
 from firebase_admin import db
+import csv
+import sys
 import os
+from operator import itemgetter
 
 cred = credentials.Certificate('firebase-adminsdk.json')
 firebase_admin.initialize_app(cred, {
     'databaseURL' : 'https://total-cascade-210406.firebaseio.com'
 })
 
+csv_folder_name = "data"
+csv_file_name = "rawData"
+
+model_folder_name = "Models/model"
+model_file_name = "ActivityRNN"
+
+model_info_file_name = "model_info.csv"
+model_info_type = ["Index", "Test Accuracy", "Batch Size", "Epoch", "Model Layer"]
+layer_info = "(lstm + dropout) * 2"
+
+
 lr = 1e-3
 
 batch_size = tf.placeholder(tf.int32, [], name='batch_size')  # tf.int32
-# Feature Num
-input_size = 28
-# Time Series Num
-timestep_size = 28
+# Feature Num #28
+input_size = 6
+# Time Series Num #28
+timestep_size = 450
 # Hidden Layer Feature Num 
 hidden_size = 256
 # LSTM Layer Num
 layer_num = 2
-# Y Class Num
-class_num = 10
+# Y Class Num #10
+class_num = 6
+class_type = ["Biking", "In Vehicle", "Running", "Still", "Tilting", "Walking", "Features"]
 
-_batch_size = 128
+_batch_size = 64
 
-epoch_num = 2000
+epoch_num = 10
 
 # Training Data / Raw Data
 train_p = 0.8
+
+epoch_start = 0
+iters = 0
+perm_X = np.empty
+perm_Y = np.empty
 
 def connect_firebase():
     root = db.reference()
@@ -66,21 +86,147 @@ def write_train(raw_data):
         train_w.writerow(item)
     train_file.close()
 
+def write_all(raw_data, sess, frozen_graphdef, tflite_model, test_accuracy):
+    global csv_folder_name
+    global csv_file_name
+    global model_folder_name
+    global model_file_name
+    global model_info_file_name
+    global _batch_size
+    global epoch_num
+    global layer_info
+
+    # **Raw Data
+    # make new csv folder
+    if not os.path.exists(csv_folder_name):
+        os.mkdir(csv_folder_name)
+
+    csv_path = os.path.join(csv_folder_name, csv_file_name)
+    i = 0
+    while os.path.exists(csv_path + str(i) + ".csv"):
+        i += 1
+
+    write raw data to csv
+    if i != 0:
+        csv_last_path = csv_path + str(0) + ".csv"
+        csv_path = csv_path + str(i) + ".csv"
+        # write raw data to csv
+        with open(csv_last_path, 'rt') as infile:
+            with open(csv_path, 'wt') as outfile:
+                writer = csv.writer(outfile)
+                reader = csv.reader(infile)
+                writer.writerow(next(reader))
+                for row in reader:
+                    writer.writerow(row)
+                for item in raw_data:
+                    writer.writerow(item)
+    else:
+        csv_path = csv_path + str(i) + ".csv"
+        csv_file = open(csv_path,"w")
+        csv_w = csv.writer(csv_file)
+        csv_w.writerow(class_type)
+        for item in raw_data:
+            csv_w.writerow(item)
+        csv_file.close()
+
+    # csv_path = csv_path + str(i) + ".csv"
+    # csv_file = open(csv_path,"w")
+    # csv_w = csv.writer(csv_file)
+    # csv_w.writerow(class_type)
+    # for item in raw_data:
+    #     csv_w.writerow(item)
+    # csv_file.close()
+
+    # clean firebase
+    # root = db.reference()
+    # root.child('SensorDataSet').delete()
+
+    # **Models
+    # make new models folder
+    i = 0
+    while os.path.exists(model_folder_name + str(i)):
+        i += 1
+    model_path = model_folder_name + str(i)
+    os.makedirs(model_path)
+
+    model_path = os.path.join(model_path, model_file_name)
+    ckpt_path = model_path + str(i) + ".ckpt"
+    tflite_path = model_path + str(i) + ".tflite"
+
+    # save model
+    # ckpt
+    saver = tf.train.Saver()
+    saver.save(sess, ckpt_path)
+    # pb
+    tf.train.write_graph(frozen_graphdef, model_folder_name + str(i),
+                     model_file_name + str(i) + '.pb', as_text=False)
+    # tflite
+    open(tflite_path, "wb").write(tflite_model)
+
+    # **Write model information to csv
+    minfo = [i, test_accuracy, _batch_size, epoch_num, layer_info]
+    if not os.path.exists(model_info_file_name):
+        model_info_file = open(model_info_file_name, "w")
+        model_info_w = csv.writer(model_info_file)
+        model_info_w.writerow(model_info_type)
+        model_info_w.writerow(minfo)
+    else:
+        model_info_file = open(model_info_file_name, "a")
+        model_info_w = csv.writer(model_info_file)
+        model_info_w.writerow(minfo)
 
 def canonical_name(x):
   return x.name.split(":")[0]
 
+def next_batch(X_train, Y_train, num, start):
+    global perm_X
+    global perm_Y
+    global iters
+    if start == 0:
+        perm = np.random.permutation(X_train.shape[0])
+        perm_X = X_train[perm, :]
+        perm_Y = Y_train[perm, :]
+        batch_X = perm_X[start:start + num, :]
+        batch_Y = perm_Y[start:start + num, :]
+        start += num
+    elif start <= X_train.shape[0] - num:
+        batch_X = perm_X[start:start + num, :]
+        batch_Y = perm_Y[start:start + num, :]
+        start += num
+    else:
+        rest_num = X_train.shape[0] - start
+        new_part_num = num - rest_num
+        batch_X = np.vstack((perm_X[start:, :], perm_X[:new_part_num, :]))
+        batch_Y = np.vstack((perm_Y[start:, :], perm_Y[:new_part_num, :]))
+        perm = np.random.permutation(X_train.shape[0])
+        perm_X = X_train[perm, :]
+        perm_Y = Y_train[perm, :]
+        start = 0
+        iters += 1
+
+    return batch_X, batch_Y, start
+
+
+
+
+
+
 # Read raw data
 raw_data = connect_firebase()
-write_train(raw_data)
+#write_train(raw_data)
 
 # Get train, test data
-dataNum = raw_data.shape[0]
+permutation = np.random.permutation(raw_data.shape[0])
+new_dataset = raw_data[permutation, :]
+print (raw_data.shape[0])
+print (new_dataset.shape[0])
+
+dataNum = new_dataset.shape[0]
 trainNum = int(dataNum*train_p)
-trainX = raw_data[:trainNum, class_num:]
-trainY = raw_data[:trainNum, :class_num].astype(int)
-testX = raw_data[trainNum:, class_num:]
-testY = raw_data[trainNum:,:class_num].astype(int)
+trainX = new_dataset[:trainNum, class_num:]
+trainY = new_dataset[:trainNum, :class_num].astype(int)
+testX = new_dataset[trainNum:, class_num:]
+testY = new_dataset[trainNum:,:class_num].astype(int)
 
 print (trainX.shape)
 print (trainY.shape)
@@ -115,9 +261,9 @@ X = tf.placeholder(tf.float32, [None, timestep_size, input_size])
 # **Step 2: Run MultiRNN with ((lstm + dropout) * 2)
 mlstm_cell = []
 for i in range(layer_num):
-	lstm_cell = rnn.BasicLSTMCell(num_units=hidden_size, forget_bias=1.0, state_is_tuple=True)
-	lstm_cell = rnn.DropoutWrapper(cell=lstm_cell, input_keep_prob=1.0, output_keep_prob=keep_prob)
-	mlstm_cell.append(lstm_cell)
+    lstm_cell = rnn.BasicLSTMCell(num_units=hidden_size, forget_bias=1.0, state_is_tuple=True)
+    lstm_cell = rnn.DropoutWrapper(cell=lstm_cell, input_keep_prob=1.0, output_keep_prob=keep_prob)
+    mlstm_cell.append(lstm_cell)
 mlstm_cell = tf.contrib.rnn.MultiRNNCell(mlstm_cell,state_is_tuple=True)
 
 # **Step3: Initiate state with zero
@@ -143,7 +289,7 @@ Y_pre = tf.nn.softmax(tf.matmul(h_state, W) + bias)
 
 
 # Loss function and accuracy
-cross_entropy = -tf.reduce_mean(y * tf.log(Y_pre))
+cross_entropy = -tf.reduce_mean(Y_train * tf.log(Y_pre))
 train_op = tf.train.AdamOptimizer(lr).minimize(cross_entropy)
 
 train_correct_prediction = tf.equal(tf.argmax(Y_pre,1), tf.argmax(Y_train,1))
@@ -161,33 +307,45 @@ config.gpu_options.allow_growth = True
 
 init = tf.global_variables_initializer()
 out = tf.identity(Y_pre, name="output")
-saver = tf.train.Saver()
+#saver = tf.train.Saver()
 
 print ("Start...")
 with tf.Session(config=config) as sess:
-	sess.run(init)
-	for i in range(epoch_num):
-	    batch = mnist.train.next_batch(_batch_size)
-	    reshape_trainX = np.array(batch[0]).reshape(-1, 28, 28)
-	    reshape_testX = np.array(mnist.test.images).reshape(-1, 28, 28)
-	    if (i+1)%200 == 0:
-	        accuracy = sess.run(train_accuracy, feed_dict={
-	            X_train:batch[0], Y_train: batch[1], keep_prob: 1.0, batch_size: _batch_size, X: reshape_trainX})
-	        print ("Iter%d, step %d, training accuracy %g" % ( mnist.train.epochs_completed, (i+1), accuracy))
-	    sess.run(train_op, feed_dict={X_train: batch[0], Y_train: batch[1], keep_prob: 0.5, batch_size: _batch_size, X: reshape_trainX})
+    sess.run(init)
+    for i in range(epoch_num):
+        batch_X, batch_Y, epoch_start = next_batch(trainX, trainY, _batch_size, epoch_start)
+        # print (batch_X.shape)
+        # print (batch_Y.shape)
+        # print (epoch_start)
+        # batch = mnist.train.next_batch(_batch_size)
+        # reshape_trainX = np.array(batch[0]).reshape(-1, timestep_size, input_size)
+        # reshape_testX = np.array(mnist.test.images).reshape(-1, timestep_size, input_size)
+        reshape_trainX = np.array(batch_X).reshape(-1, timestep_size, input_size)
+        reshape_testX = np.array(testX).reshape(-1, timestep_size, input_size)
+        if (i+1)%200 == 0:
+            accuracy = sess.run(train_accuracy, feed_dict={
+                X_train:batch_X, Y_train: batch_Y, keep_prob: 1.0, batch_size: _batch_size, X: reshape_trainX})
+            #print ("Iter%d, step %d, training accuracy %g" % ( mnist.train.epochs_completed, (i+1), accuracy))
+            print ("Iter%d, Epoch %d, Training Accuracy %g" % ( iters, (i+1), accuracy))
+        sess.run(train_op, feed_dict={X_train: batch_X, Y_train: batch_Y, keep_prob: 0.5, batch_size: _batch_size, X: reshape_trainX})
 
-	# Testing data accuracy
-	print ("test accuracy %g"% sess.run(test_accuracy, feed_dict={
-	    X_test: mnist.test.images, Y_test: mnist.test.labels, keep_prob: 1.0, batch_size:mnist.test.images.shape[0], X: reshape_testX}))
+    # Testing data accuracy
+    # print ("Test Accuracy %g"% sess.run(test_accuracy, feed_dict={
+    #     X_test: mnist.test.images, Y_test: mnist.test.labels, keep_prob: 1.0, batch_size:mnist.test.images.shape[0], X: reshape_testX}))
+    test_accuracy = sess.run(test_accuracy, feed_dict={
+        X_test: testX, Y_test: testY, keep_prob: 1.0, batch_size:testX.shape[0], X: reshape_testX})
+    print ("Test Accuracy %g"% test_accuracy)
 
-	saver.save(sess, "model/rnn.ckpt")
+    #saver.save(sess, "model/rnn.ckpt")
 
-	frozen_tensors = [out]
-	out_tensors = [out]
+    frozen_tensors = [out]
+    out_tensors = [out]
 
-	frozen_graphdef = tf.graph_util.convert_variables_to_constants(sess, sess.graph_def, list(map(canonical_name, frozen_tensors)))
-	tf.train.write_graph(frozen_graphdef, "model",
-                     'rnn.pb', as_text=False)
-	tflite_model = tf.contrib.lite.toco_convert(frozen_graphdef, [X_train], out_tensors, allow_custom_ops=True)
+    frozen_graphdef = tf.graph_util.convert_variables_to_constants(sess, sess.graph_def, list(map(canonical_name, frozen_tensors)))
+    # tf.train.write_graph(frozen_graphdef, "model",
+    #                  'rnn.pb', as_text=False)
+    tflite_model = tf.contrib.lite.toco_convert(frozen_graphdef, [X_train], out_tensors, allow_custom_ops=True)
 
-	open("writer_model.tflite", "wb").write(tflite_model)
+    #open("writer_model.tflite", "wb").write(tflite_model)
+
+    write_all(raw_data, sess, frozen_graphdef, tflite_model, test_accuracy)

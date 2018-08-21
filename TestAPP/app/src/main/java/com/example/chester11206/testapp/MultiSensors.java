@@ -94,6 +94,7 @@ public class MultiSensors {
     private List<gyroData> gyroDataSet = new ArrayList<gyroData>();
     private int acceNum = 0;
     private int gyroNum = 0;
+    private int dataNum = 0;
     private int startNum = 0;
     private int stopNum = 0;
     private List<Map<String, Integer>> real_activitySet = new ArrayList<Map<String, Integer>>();
@@ -344,10 +345,11 @@ public class MultiSensors {
 //                        }
                     }
                     if (!startListen_acce && !startListen_gyro) {
+                        dataNum++;
                         String ra = real_activity;
                         startNum = stopNum;
                         stopNum = acceNum;
-                        txvResult.setText("\nNum: " + startNum + " to " + stopNum + " " + "Activity: " + ra);
+                        txvResult.setText("\nNum: " + startNum + " to " + stopNum + " " + "Activity: " + ra + "\nDataNum: " + dataNum);
 
                         //List<Map<String, Float>> SensorDataSet = new ArrayList<Map<String, Float>>();
                         Map<String, Float> SensorData = new LinkedHashMap<String, Float>();

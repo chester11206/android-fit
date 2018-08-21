@@ -115,12 +115,17 @@ def writetrain(raw_data):
 raw_data = connect_firebase_admin()
 writetrain(raw_data)
 
-dataNum = raw_data.shape[0]
+permutation = np.random.permutation(raw_data.shape[0])
+new_dataset = raw_data[permutation, :]
+print (raw_data.shape[0])
+print (new_dataset.shape[0])
+
+dataNum = new_dataset.shape[0]
 trainNum = int(dataNum*train_p)
-trainX = raw_data[:trainNum, class_num:]
-trainY = raw_data[:trainNum, :class_num].astype(int)
-testX = raw_data[trainNum:, class_num:]
-testY = raw_data[trainNum:,:class_num].astype(int)
+trainX = new_dataset[:trainNum, class_num:]
+trainY = new_dataset[:trainNum, :class_num].astype(int)
+testX = new_dataset[trainNum:, class_num:]
+testY = new_dataset[trainNum:,:class_num].astype(int)
 
 print (trainX.shape)
 print (trainY.shape)
