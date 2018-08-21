@@ -20,7 +20,7 @@ firebase_admin.initialize_app(cred, {
 csv_folder_name = "data"
 csv_file_name = "rawData"
 
-model_folder_name = "Models/model"
+model_folder_name = "~/Activity_model/model"
 model_file_name = "ActivityRNN"
 
 model_info_file_name = "model_info.csv"
@@ -43,9 +43,9 @@ layer_num = 2
 class_num = 6
 class_type = ["Biking", "In Vehicle", "Running", "Still", "Tilting", "Walking", "Features"]
 
-_batch_size = 64
+_batch_size = 128
 
-epoch_num = 10
+epoch_num = 2000
 
 # Training Data / Raw Data
 train_p = 0.8
@@ -74,27 +74,9 @@ def connect_firebase():
 
     return npdata
 
-def write_train(raw_data):
-    folder_path = "data"
-    if not os.path.exists(folder_path):
-        os.mkdir(folder_path)
-    file_path = os.path.join(folder_path, sys.argv[1])
-    train_file = open(file_path,"w") #submit_final.csv
-    train_w = csv.writer(train_file)
-    train_w.writerow(["Biking", "In Vehicle", "Running", "Still", "Tilting", "Walking", "Features"])
-    for item in raw_data:
-        train_w.writerow(item)
-    train_file.close()
-
-def write_all(raw_data, sess, frozen_graphdef, tflite_model, test_accuracy):
+def write_data(raw_data):
     global csv_folder_name
     global csv_file_name
-    global model_folder_name
-    global model_file_name
-    global model_info_file_name
-    global _batch_size
-    global epoch_num
-    global layer_info
 
     # **Raw Data
     # make new csv folder
@@ -106,9 +88,9 @@ def write_all(raw_data, sess, frozen_graphdef, tflite_model, test_accuracy):
     while os.path.exists(csv_path + str(i) + ".csv"):
         i += 1
 
-    write raw data to csv
+    #write raw data to csv
     if i != 0:
-        csv_last_path = csv_path + str(0) + ".csv"
+        csv_last_path = csv_path + str(i-1) + ".csv"
         csv_path = csv_path + str(i) + ".csv"
         # write raw data to csv
         with open(csv_last_path, 'rt') as infile:
@@ -129,17 +111,23 @@ def write_all(raw_data, sess, frozen_graphdef, tflite_model, test_accuracy):
             csv_w.writerow(item)
         csv_file.close()
 
-    # csv_path = csv_path + str(i) + ".csv"
-    # csv_file = open(csv_path,"w")
-    # csv_w = csv.writer(csv_file)
-    # csv_w.writerow(class_type)
-    # for item in raw_data:
-    #     csv_w.writerow(item)
-    # csv_file.close()
+    new_data = list(csv.reader(open(csv_path,'r')))
+    new_data = np.array(new_data[1:]).astype(float)
+    print (all_data.shape)
 
     # clean firebase
-    # root = db.reference()
-    # root.child('SensorDataSet').delete()
+    root = db.reference()
+    root.child('SensorDataSet').delete()
+
+    return new_data
+
+def write_result(sess, frozen_graphdef, tflite_model, test_accuracy):
+    global model_folder_name
+    global model_file_name
+    global model_info_file_name
+    global _batch_size
+    global epoch_num
+    global layer_info
 
     # **Models
     # make new models folder
@@ -207,19 +195,11 @@ def next_batch(X_train, Y_train, num, start):
     return batch_X, batch_Y, start
 
 
-
-
-
-
 # Read raw data
 raw_data = connect_firebase()
-#write_train(raw_data)
+new_data = write_data(raw_data)
 
 # Get train, test data
-permutation = np.random.permutation(raw_data.shape[0])
-new_dataset = raw_data[permutation, :]
-print (raw_data.shape[0])
-print (new_dataset.shape[0])
 
 dataNum = new_dataset.shape[0]
 trainNum = int(dataNum*train_p)
@@ -236,9 +216,6 @@ print (trainX)
 print (trainY)
 print (testX)
 print (testY)
-
-mnist = input_data.read_data_sets('MNIST_data', one_hot=True)
-print (mnist.train.images.shape)
 
 # set training x, y placeholder
 X_train = tf.placeholder(tf.float32, [_batch_size, timestep_size*input_size], name="imput_train_x")
@@ -348,4 +325,4 @@ with tf.Session(config=config) as sess:
 
     #open("writer_model.tflite", "wb").write(tflite_model)
 
-    write_all(raw_data, sess, frozen_graphdef, tflite_model, test_accuracy)
+    write_result(sess, frozen_graphdef, tflite_model, test_accuracy)

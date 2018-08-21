@@ -22,8 +22,12 @@ configfb = {"apiKey": "AIzaSyBkvh_XeJKp1v5XiRSiQEOsfiG5tfV7d9Y",
 timestep_size = 450
 
 class_num = 6
+class_type = ["Biking", "In Vehicle", "Running", "Still", "Tilting", "Walking", "Features"]
 
 train_p = 0.8
+
+csv_folder_name = "data"
+csv_file_name = "rawData"
 
 def connect_firebase_admin():
     root = db.reference()
@@ -101,23 +105,55 @@ def connect_firebase_pyrebase():
     return npdata
 
 def writetrain(raw_data):
-    folder_path = "data"
-    if not os.path.exists(folder_path):
-        os.mkdir(folder_path)
-    file_path = os.path.join(folder_path, sys.argv[1])
-    train_file = open(file_path,"w") #submit_final.csv
-    train_w = csv.writer(train_file)
-    train_w.writerow(["Biking", "In Vehicle", "Running", "Still", "Tilting", "Walking", "Features"])
-    for item in raw_data:
-        train_w.writerow(item)
-    train_file.close()
+    global csv_folder_name
+    global csv_file_name
+
+    # **Raw Data
+    # make new csv folder
+    if not os.path.exists(csv_folder_name):
+        os.mkdir(csv_folder_name)
+
+    csv_path = os.path.join(csv_folder_name, csv_file_name)
+    i = 0
+    while os.path.exists(csv_path + str(i) + ".csv"):
+        i += 1
+
+    #write raw data to csv
+    if i != 0:
+        csv_last_path = csv_path + str(0) + ".csv"
+        csv_path = csv_path + str(i) + ".csv"
+        # write raw data to csv
+        with open(csv_last_path, 'rt') as infile:
+            with open(csv_path, 'wt') as outfile:
+                writer = csv.writer(outfile)
+                reader = csv.reader(infile)
+                writer.writerow(next(reader))
+                for row in reader:
+                    writer.writerow(row)
+                for item in raw_data:
+                    writer.writerow(item)
+    else:
+        csv_path = csv_path + str(i) + ".csv"
+        csv_file = open(csv_path,"w")
+        csv_w = csv.writer(csv_file)
+        csv_w.writerow(class_type)
+        for item in raw_data:
+            csv_w.writerow(item)
+        csv_file.close()
+
+    all_data = list(csv.reader(open(csv_path,'r')))
+    all_data = np.array(all_data[1:]).astype(float)
+    print (all_data.shape)
+
+    return all_data
+
 
 raw_data = connect_firebase_admin()
-writetrain(raw_data)
+all_data = writetrain(raw_data)
 
-permutation = np.random.permutation(raw_data.shape[0])
-new_dataset = raw_data[permutation, :]
-print (raw_data.shape[0])
+permutation = np.random.permutation(all_data.shape[0])
+new_dataset = all_data[permutation, :]
+print (all_data.shape[0])
 print (new_dataset.shape[0])
 
 dataNum = new_dataset.shape[0]
@@ -127,14 +163,14 @@ trainY = new_dataset[:trainNum, :class_num].astype(int)
 testX = new_dataset[trainNum:, class_num:]
 testY = new_dataset[trainNum:,:class_num].astype(int)
 
-print (trainX.shape)
-print (trainY.shape)
-print (testX.shape)
-print (testY.shape)
-print (trainX)
-print (trainY)
-print (testX)
-print (testY)
+# print (trainX.shape)
+# print (trainY.shape)
+# print (testX.shape)
+# print (testY.shape)
+# print (trainX)
+# print (trainY)
+# print (testX)
+# print (testY)
 
 #and now the hard/ easy part that took me a while to figure out:
 # notice the value inside the .child, it should be the parent name with all the cats keys
